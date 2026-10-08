@@ -141,6 +141,27 @@ class TuitionFee
         $stmt->execute([$newPaid, $status, $feeId]);
     }
 
+    public static function processRefund(int $feeId, float $amount): void
+    {
+        $db = Database::getInstance();
+        $fee = self::findById($feeId);
+        if (!$fee) return;
+
+        $currentPaid = (float) $fee['amount_paid'];
+        $newPaid = round(max(0.0, $currentPaid - $amount), 2);
+        $total = round((float) $fee['total_amount'], 2);
+
+        $status = 'unpaid';
+        if ($newPaid >= $total && $total > 0) {
+            $status = 'paid';
+        } elseif ($newPaid > 0) {
+            $status = 'partial';
+        }
+
+        $stmt = $db->prepare("UPDATE tuition_fees SET amount_paid = ?, status = ? WHERE id = ?");
+        $stmt->execute([$newPaid, $status, $feeId]);
+    }
+
     public static function createCustomAssessment(
         int $studentId,
         string $schoolYear,
@@ -238,11 +259,13 @@ class TuitionFee
         $db = Database::getInstance();
 
         // Must remove child rows first to satisfy FK constraints:
-        // 1. payments reference tuition_fees (fk_payments_fee)
+        // 1. refund_requests reference tuition_fees
+        $db->prepare("DELETE FROM refund_requests WHERE tuition_fee_id = ?")->execute([$id]);
+        // 2. payments reference tuition_fees (fk_payments_fee)
         $db->prepare("DELETE FROM payments WHERE tuition_fee_id = ?")->execute([$id]);
-        // 2. tuition_fee_items reference tuition_fees
+        // 3. tuition_fee_items reference tuition_fees
         $db->prepare("DELETE FROM tuition_fee_items WHERE tuition_fee_id = ?")->execute([$id]);
-        // 3. Now safe to delete the parent
+        // 4. Now safe to delete the parent
         $db->prepare("DELETE FROM tuition_fees WHERE id = ?")->execute([$id]);
     }
 }

@@ -35,6 +35,11 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
             background-color: #f8fafc;
         }
 
+        /* ── SweetAlert2 Always on Top of Modals ── */
+        .swal2-container {
+            z-index: 10000000 !important;
+        }
+
         /* ── Fullscreen Processing / Email Loading Overlay ── */
         .paytrack-loading-backdrop {
             position: fixed;
@@ -1117,6 +1122,16 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
                     <span class="badge-count"><?= count($payments) ?></span>
                 </a>
             </li>
+            <li>
+                <a href="<?= APP_URL ?>/public/student/?view=refunds" class="nav-item <?= $currentView === 'refunds' ? 'active' : '' ?>">
+                    <span class="ic">&#8635;</span> Refund Requests
+                    <?php if (!empty($pendingRefundsCount) && $pendingRefundsCount > 0): ?>
+                        <span class="badge-count" style="background:#d97706;"><?= $pendingRefundsCount ?></span>
+                    <?php elseif (!empty($refunds) && count($refunds) > 0): ?>
+                        <span class="badge-count"><?= count($refunds) ?></span>
+                    <?php endif; ?>
+                </a>
+            </li>
         </ul>
 
         <div style="margin-top: auto; padding-top: 18px; border-top: 1px solid #e2e8f0;">
@@ -1552,6 +1567,12 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
                                 </a>
                                 <a href="<?= APP_URL ?>/public/student/?view=history" class="btn" style="justify-content: flex-start; gap: 8px; width: 100%;">
                                     <span>📜</span> Complete Payment History Ledger
+                                </a>
+                                <a href="<?= APP_URL ?>/public/student/?view=refunds" class="btn" style="justify-content: flex-start; gap: 8px; width: 100%;">
+                                    <span>↺</span> Refund Requests &amp; Approvals
+                                    <?php if (!empty($pendingRefundsCount) && $pendingRefundsCount > 0): ?>
+                                        <span class="badge" style="margin-left: auto; background: #fef3c7; color: #92400e; font-size: 11px; padding: 2px 7px; border-radius: 99px;"><?= $pendingRefundsCount ?> Pending</span>
+                                    <?php endif; ?>
                                 </a>
                             </div>
                         </div>
@@ -2089,6 +2110,169 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
                         </div>
                     <?php endif; ?>
                 </div>
+
+            <!-- ============================================== -->
+            <!-- VIEW 5: REFUND REQUESTS & ADJUSTMENTS          -->
+            <!-- ============================================== -->
+            <?php elseif ($currentView === 'refunds'): ?>
+                <?php
+                    $pendingRefundsList = array_filter($refunds, fn($r) => $r['status'] === 'pending');
+                    $approvedRefundsList = array_filter($refunds, fn($r) => $r['status'] === 'approved');
+                    $rejectedRefundsList = array_filter($refunds, fn($r) => $r['status'] === 'rejected');
+                    $primaryMaxRefundable = $primaryFee ? max(0.0, (float)$primaryFee['amount_paid'] - Refund::getPendingAmountForFee((int)$primaryFee['id'])) : 0.0;
+                ?>
+                <!-- PAGE HEADER ROW -->
+                <div class="portal-header-row">
+                    <div class="portal-title-flex">
+                        <div class="wallet-icon-box" style="background: #f0fdf4; color: #16a34a;">
+                            <span style="font-size: 22px;">↺</span>
+                        </div>
+                        <div>
+                            <h1 class="portal-page-title">Tuition Refund Requests</h1>
+                            <p class="portal-page-sub">Submit refund requests with a valid reason and monitor Accounting Office assessments</p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <button type="button" class="btn-pay-now-main" onclick="openRequestRefundModal()" style="background: #0b3d2e;">
+                            <span style="font-size: 16px;">+</span> File Refund Request
+                        </button>
+                    </div>
+                </div>
+
+                <!-- KPI STATS CARDS -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Total Approved Refunds</div>
+                        <div style="font-size: 24px; font-weight: 800; color: #15803d; margin-top: 4px;"><?= peso($totalRefunded) ?></div>
+                        <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;"><?= count($approvedRefundsList) ?> approved adjustment(s)</div>
+                    </div>
+
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Pending Assessment</div>
+                        <div style="font-size: 24px; font-weight: 800; color: #d97706; margin-top: 4px;"><?= count($pendingRefundsList) ?></div>
+                        <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">Under Accounting review</div>
+                    </div>
+
+                    <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                        <div style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px;">Available Paid to Refund</div>
+                        <div style="font-size: 24px; font-weight: 800; color: #2563eb; margin-top: 4px;"><?= peso($primaryMaxRefundable) ?></div>
+                        <div style="font-size: 11.5px; color: #64748b; margin-top: 2px;">Eligible for refund filing</div>
+                    </div>
+                </div>
+
+                <!-- REFUND POLICY CALLOUT -->
+                <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; gap: 14px; align-items: flex-start;">
+                    <div style="font-size: 22px; line-height: 1;">ℹ️</div>
+                    <div style="font-size: 13px; color: #1e3a8a; line-height: 1.55;">
+                        <strong style="color: #1e40af;">Refund Verification Process:</strong> All refund requests require an official, valid reason (e.g., dropped course units, overpayment, duplicate payment, or enrollment withdrawal). The Accounting Office reviews and assesses each submission. Once approved, the amount is deducted from your payments, your tuition balance reflects the adjustment, and an official confirmation email is sent to you and your parents.
+                    </div>
+                </div>
+
+                <!-- REFUND REQUESTS TABLE CONTAINER -->
+                <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
+                        <div>
+                            <h2 style="font-size: 17px; font-weight: 800; color: #0f172a; margin: 0;">Refund History &amp; Request Tracking</h2>
+                            <p style="font-size: 12.5px; color: #64748b; margin: 3px 0 0;">View the real-time review status and Accounting notes for each filed request</p>
+                        </div>
+                    </div>
+
+                    <?php if (empty($refunds)): ?>
+                        <div style="padding: 48px 20px; text-align: center; color: #64748b;">
+                            <div style="font-size: 40px; margin-bottom: 12px; opacity: 0.6;">↺</div>
+                            <h3 style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 6px;">No Refund Requests Found</h3>
+                            <p style="font-size: 13px; max-width: 480px; margin: 0 auto 18px; line-height: 1.5;">
+                                You have not submitted any refund requests yet. If you have made a payment and need an adjustment with a valid reason, click the button below.
+                            </p>
+                            <button type="button" class="btn" onclick="openRequestRefundModal()" style="background: #0b3d2e; color: #ffffff; font-weight: 700; padding: 9px 20px;">
+                                Submit Your First Refund Request
+                            </button>
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table" style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="border-bottom: 2px solid #e2e8f0; text-align: left; color: #475569; font-size: 11.5px; text-transform: uppercase;">
+                                        <th style="padding: 10px 12px;">Ref. Number</th>
+                                        <th style="padding: 10px 12px;">Assessment / Receipt</th>
+                                        <th style="padding: 10px 12px;">Amount</th>
+                                        <th style="padding: 10px 12px;">Reason Provided</th>
+                                        <th style="padding: 10px 12px;">Status</th>
+                                        <th style="padding: 10px 12px;">Accounting Assessment</th>
+                                        <th style="padding: 10px 12px;">Date Filed</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($refunds as $ref): ?>
+                                        <tr style="border-bottom: 1px solid #f1f5f9; vertical-align: top;">
+                                            <td style="padding: 12px; font-family: monospace; font-weight: 700; color: #0b3d2e;">
+                                                <?= e($ref['refund_number']) ?>
+                                            </td>
+                                            <td style="padding: 12px;">
+                                                <div style="font-weight: 600; color: #0f172a;"><?= e($ref['fee_desc']) ?></div>
+                                                <?php if (!empty($ref['or_number'])): ?>
+                                                    <div style="font-size: 11.5px; color: #64748b;">OR: <span style="font-family: monospace; font-weight: 600;"><?= e($ref['or_number']) ?></span></div>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td style="padding: 12px; font-weight: 800; font-size: 14px; color: #0f172a;">
+                                                <?= peso((float)$ref['amount']) ?>
+                                            </td>
+                                            <td style="padding: 12px; max-width: 260px;">
+                                                <div style="background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 6px 10px; border-radius: 4px; font-size: 12px; color: #334155; line-height: 1.45; font-style: italic;">
+                                                    "<?= e($ref['reason']) ?>"
+                                                </div>
+                                            </td>
+                                            <td style="padding: 12px;">
+                                                <?php if ($ref['status'] === 'approved'): ?>
+                                                    <span style="display: inline-block; padding: 4px 10px; border-radius: 99px; background: #dcfce7; color: #15803d; font-size: 11.5px; font-weight: 700;">
+                                                        ✓ Approved
+                                                    </span>
+                                                <?php elseif ($ref['status'] === 'rejected'): ?>
+                                                    <span style="display: inline-block; padding: 4px 10px; border-radius: 99px; background: #fee2e2; color: #991b1b; font-size: 11.5px; font-weight: 700;">
+                                                        ✕ Rejected
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span style="display: inline-block; padding: 4px 10px; border-radius: 99px; background: #fef3c7; color: #92400e; font-size: 11.5px; font-weight: 700;">
+                                                        ⏳ Pending Review
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td style="padding: 12px; max-width: 220px;">
+                                                <?php if ($ref['status'] === 'approved'): ?>
+                                                    <div style="font-size: 12px; color: #166534;">
+                                                        <strong>Deducted from balance</strong>
+                                                        <?php if (!empty($ref['review_notes'])): ?>
+                                                            <div style="font-size: 11.5px; color: #4b5563; margin-top: 3px;">Note: <?= e($ref['review_notes']) ?></div>
+                                                        <?php endif; ?>
+                                                        <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">Assessed: <?= date('M d, Y', strtotime($ref['reviewed_at'])) ?></div>
+                                                    </div>
+                                                <?php elseif ($ref['status'] === 'rejected'): ?>
+                                                    <div style="font-size: 12px; color: #991b1b;">
+                                                        <strong>Declined by Accounting</strong>
+                                                        <?php if (!empty($ref['rejection_reason'])): ?>
+                                                            <div style="font-size: 11.5px; color: #7f1d1d; margin-top: 3px; background: #fff1f2; padding: 4px 8px; border-radius: 4px;">
+                                                                <?= e($ref['rejection_reason']) ?>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        <div style="font-size: 10.5px; color: #94a3b8; margin-top: 2px;">Reviewed: <?= date('M d, Y', strtotime($ref['reviewed_at'])) ?></div>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <span style="font-size: 12px; color: #64748b; font-style: italic;">
+                                                        Awaiting assessment by Accounting Staff
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td style="padding: 12px; font-size: 12px; color: #64748b; white-space: nowrap;">
+                                                <?= date('M d, Y h:i A', strtotime($ref['requested_at'])) ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
             <?php endif; ?>
 
         </main>
@@ -2163,6 +2347,23 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
         <div class="paytrack-loading-title">Processing Payment...</div>
         <p class="paytrack-loading-desc">
             Please wait while your payment is securely verified and an official electronic receipt is generated and emailed to you and your parents.
+        </p>
+        <div class="paytrack-loading-bar-wrapper">
+            <div class="paytrack-loading-bar-fill"></div>
+        </div>
+        <small style="color: #94a3b8; font-size: 11px;">Do not close or refresh this page.</small>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- FULLSCREEN REFUND PROCESSING LOADING OVERLAY -->
+<!-- ========================================== -->
+<div class="paytrack-loading-backdrop" id="refundLoadingOverlay">
+    <div class="paytrack-loading-card">
+        <div class="paytrack-spinner-ring"></div>
+        <div class="paytrack-loading-title">Submitting Refund Request...</div>
+        <p class="paytrack-loading-desc">
+            Please wait while your refund request is recorded and an official notification is dispatched to the Accounting Office.
         </p>
         <div class="paytrack-loading-bar-wrapper">
             <div class="paytrack-loading-bar-fill"></div>
@@ -2288,6 +2489,96 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
     </div>
 </div>
 
+<!-- ========================================== -->
+<!-- MODAL: REQUEST REFUND MODAL                -->
+<!-- ========================================== -->
+<div class="modal-backdrop" id="requestRefundModal" style="display: none;">
+    <div class="modal-window" style="max-width: 500px;">
+        <button type="button" class="modal-close-x" id="btnCloseRequestRefundModal" onclick="closeRequestRefundModal()">&times;</button>
+        <h2 class="modal-header-title">File Tuition Refund Request</h2>
+        <p class="modal-header-sub" style="font-size: 13px; color: #64748b; margin-top: 2px; margin-bottom: 18px;">
+            Submit your request with a valid justification reason for Accounting Office review.
+        </p>
+
+        <form method="POST" action="<?= APP_URL ?>/public/student/?view=refunds" id="refundRequestForm">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="request_refund">
+
+            <!-- Select Assessment -->
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label" style="font-size: 13px; font-weight: 700; color: #0f172a;">Tuition Assessment to Refund *</label>
+                <select class="form-control" name="fee_id" id="refundFeeSelect" onchange="onRefundFeeChanged()" required style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1.5px solid #0b3d2e; font-size: 13px;">
+                    <option value="">-- Choose Tuition Assessment to Refund * --</option>
+                    <?php if (empty($fees)): ?>
+                        <option value="" disabled>No tuition assessments available</option>
+                    <?php else: ?>
+                        <?php foreach ($fees as $feeOpt): ?>
+                            <?php 
+                                $pPending = Refund::getPendingAmountForFee((int)$feeOpt['id']);
+                                $maxRef = max(0.0, (float)$feeOpt['amount_paid'] - $pPending);
+                            ?>
+                            <option value="<?= (int)$feeOpt['id'] ?>" data-paid="<?= (float)$feeOpt['amount_paid'] ?>" data-max="<?= $maxRef ?>">
+                                <?= e($feeOpt['description']) ?> (Paid: <?= peso((float)$feeOpt['amount_paid']) ?><?= $maxRef > 0 ? ' &bull; Max Refundable: ' . peso($maxRef) : ' &bull; No refundable funds' ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
+            </div>
+
+            <!-- Select Optional Specific Payment OR -->
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label" style="font-size: 13px; font-weight: 700; color: #0f172a;">Related Payment Receipt (Optional)</label>
+                <select class="form-control" name="payment_id" id="refundPaymentSelect" onchange="onRefundPaymentChanged()" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px;">
+                    <option value="" data-max="">-- Apply to Total Assessment Paid Balance --</option>
+                    <?php foreach ($payments as $payOpt): ?>
+                        <?php
+                            $rAppr = Refund::getRefundedAmountForPayment((int)$payOpt['id']);
+                            $rPend = Refund::getPendingAmountForPayment((int)$payOpt['id']);
+                            $payMax = max(0.0, (float)$payOpt['amount'] - ($rAppr + $rPend));
+                        ?>
+                        <option value="<?= (int)$payOpt['id'] ?>" data-fee-id="<?= (int)$payOpt['tuition_fee_id'] ?>" data-max="<?= $payMax ?>">
+                            OR# <?= e($payOpt['or_number']) ?> — <?= peso((float)$payOpt['amount']) ?> (<?= date('M d, Y', strtotime($payOpt['paid_at'])) ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <div style="font-size: 11px; color: #64748b; margin-top: 3px;">Select a specific OR receipt or apply refund directly to assessment credit.</div>
+            </div>
+
+            <!-- Available Max Refundable Box -->
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 12px; font-weight: 700; color: #166534;">Maximum Refundable Amount:</span>
+                <span id="refundMaxDisplay" style="font-size: 15px; font-weight: 800; color: #15803d; font-family: monospace;">₱0.00 — Please select an assessment</span>
+            </div>
+
+            <!-- Refund Amount Input -->
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label" for="refundAmountInput" style="font-size: 13px; font-weight: 700; color: #0f172a;">Refund Amount (₱) *</label>
+                <input type="number" step="0.01" min="1" class="form-control" name="amount" id="refundAmountInput" required disabled placeholder="Select an assessment first..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px;">
+            </div>
+
+            <!-- Valid Reason for Refund (Mandatory Requirement) -->
+            <div class="form-group" style="margin-bottom: 18px;">
+                <label class="form-label" for="refundReasonInput" style="font-size: 13px; font-weight: 700; color: #0f172a;">Valid Reason for Refund *</label>
+                <textarea class="form-control" name="reason" id="refundReasonInput" rows="3" required minlength="10" placeholder="State your valid reason (e.g., dropped laboratory subject, course change, overpayment error, double deposit)..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; line-height: 1.45;"></textarea>
+                <div style="font-size: 11.5px; color: #475569; margin-top: 4px; display: flex; align-items: center; gap: 4px;">
+                    <span style="color: #b45309;">⚠️</span> Accounting requires a detailed, valid reason (at least 10 characters) before assessing this request.
+                </div>
+            </div>
+
+            <div style="background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 12px; margin-bottom: 20px; font-size: 11.5px; color: #64748b; line-height: 1.45;">
+                Upon approval by Accounting, the refund is reflected on your student tuition balance and confirmation emails are dispatched to both student and parent email accounts.
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="closeRequestRefundModal()" class="btn" style="flex: 1; justify-content: center; padding: 11px; font-weight: 600;">Cancel</button>
+                <button type="submit" class="btn" id="btnSubmitRefund" style="flex: 2; justify-content: center; padding: 11px; background: #0b3d2e; color: #ffffff; font-weight: 700; border: none; border-radius: 8px;">
+                    Submit Refund Request
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- SweetAlert2 -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
@@ -2376,6 +2667,176 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
     document.getElementById('pill5k')?.addEventListener('click', () => {
         payAmountInput.value = Math.min(5000, currentRemaining).toFixed(2);
     });
+
+    // ── Request Refund Modal Logic ─────────────────────────────
+    const refundModal = document.getElementById('requestRefundModal');
+    const refundFeeSelect = document.getElementById('refundFeeSelect');
+    const refundPaymentSelect = document.getElementById('refundPaymentSelect');
+    const refundMaxDisplay = document.getElementById('refundMaxDisplay');
+    const refundAmountInput = document.getElementById('refundAmountInput');
+    const refundReasonInput = document.getElementById('refundReasonInput');
+    const refundRequestForm = document.getElementById('refundRequestForm');
+
+    let currentRefundMax = 0;
+
+    function updateRefundLimit() {
+        let maxVal = 0;
+        const selectedFee = refundFeeSelect?.value;
+        if (!selectedFee) {
+            currentRefundMax = 0;
+            if (refundMaxDisplay) {
+                refundMaxDisplay.textContent = '₱0.00 — Please choose an assessment';
+            }
+            if (refundAmountInput) {
+                refundAmountInput.disabled = true;
+                refundAmountInput.value = '';
+                refundAmountInput.placeholder = 'Select an assessment first...';
+            }
+            return;
+        }
+
+        const selectedPayOpt = refundPaymentSelect?.selectedOptions[0];
+        const payMax = selectedPayOpt ? parseFloat(selectedPayOpt.getAttribute('data-max') || 0) : 0;
+
+        if (refundPaymentSelect && refundPaymentSelect.value && payMax > 0) {
+            maxVal = payMax;
+        } else if (refundFeeSelect && refundFeeSelect.selectedOptions[0]) {
+            const feeMax = parseFloat(refundFeeSelect.selectedOptions[0].getAttribute('data-max') || 0);
+            maxVal = feeMax;
+        }
+
+        currentRefundMax = maxVal;
+        if (refundAmountInput) {
+            if (maxVal > 0) {
+                refundAmountInput.disabled = false;
+                refundAmountInput.max = maxVal;
+                refundAmountInput.placeholder = 'Enter amount to refund (max ₱' + maxVal.toLocaleString('en-PH', {minimumFractionDigits: 2}) + ')';
+                if (!refundAmountInput.value || parseFloat(refundAmountInput.value) > maxVal) {
+                    refundAmountInput.value = maxVal.toFixed(2);
+                }
+            } else {
+                refundAmountInput.disabled = true;
+                refundAmountInput.value = '';
+                refundAmountInput.placeholder = 'No refundable funds for this assessment';
+            }
+        }
+        if (refundMaxDisplay) {
+            if (maxVal > 0) {
+                refundMaxDisplay.textContent = '₱' + maxVal.toLocaleString('en-PH', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            } else {
+                refundMaxDisplay.textContent = '₱0.00 (No refundable balance)';
+            }
+        }
+    }
+
+    window.onRefundFeeChanged = function() {
+        updateRefundLimit();
+    };
+
+    window.onRefundPaymentChanged = function() {
+        const selectedPayOpt = refundPaymentSelect?.selectedOptions[0];
+        if (selectedPayOpt && selectedPayOpt.getAttribute('data-fee-id')) {
+            const feeId = selectedPayOpt.getAttribute('data-fee-id');
+            if (refundFeeSelect) {
+                refundFeeSelect.value = feeId;
+            }
+        }
+        updateRefundLimit();
+    };
+
+    window.openRequestRefundModal = function() {
+        if (!refundModal) return;
+        updateRefundLimit();
+        refundModal.style.display = 'flex';
+        refundModal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeRequestRefundModal = function() {
+        if (!refundModal) return;
+        refundModal.style.display = 'none';
+        refundModal.classList.remove('active');
+        document.body.style.overflow = '';
+    };
+
+    if (refundRequestForm) {
+        refundRequestForm.addEventListener('submit', function (e) {
+            if (!refundFeeSelect || !refundFeeSelect.value) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Assessment Required',
+                    text: 'Please select which tuition assessment you are requesting a refund for.'
+                });
+                return;
+            }
+
+            const reason = (refundReasonInput?.value || '').trim();
+            const amount = parseFloat(refundAmountInput?.value || 0);
+
+            if (currentRefundMax <= 0) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'No Refundable Funds',
+                    text: 'There are no eligible paid funds available to refund for this assessment.'
+                });
+                return;
+            }
+
+            if (amount <= 0) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Invalid Amount',
+                    text: 'Please enter a positive refund amount.'
+                });
+                return;
+            }
+
+            if (amount > currentRefundMax) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Amount Exceeds Maximum',
+                    text: 'The requested refund amount cannot exceed ₱' + currentRefundMax.toLocaleString('en-PH', {minimumFractionDigits: 2})
+                });
+                return;
+            }
+
+            if (reason.length < 10) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Valid Reason Required',
+                    text: 'Accounting requires a detailed justification reason of at least 10 characters.'
+                });
+                return;
+            }
+
+            // Prompt user confirmation before submitting
+            e.preventDefault();
+            Swal.fire({
+                title: 'Submit Refund Request?',
+                html: `Are you sure you want to request a refund of <strong>₱${amount.toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong>?<br><br><small style="color:#64748b;">The Accounting Office will evaluate your stated reason. Once approved, the amount will be adjusted on your tuition ledger and confirmation emails will be sent.</small>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Submit Request',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#0b3d2e',
+                cancelButtonColor: '#94a3b8'
+            }).then(result => {
+                if (result.isConfirmed) {
+                    closeRequestRefundModal();
+                    const overlay = document.getElementById('refundLoadingOverlay');
+                    if (overlay) {
+                        overlay.classList.add('active');
+                    }
+                    refundRequestForm.submit();
+                }
+            });
+        });
+    }
 
     // ── Student Notifications Dropdown Interaction ───────────
     const btnStudentNotif = document.getElementById('btnStudentNotif');
@@ -2628,6 +3089,29 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
             if (result.isConfirmed) {
                 window.location.href = '<?= APP_URL ?>/public/student/?view=history';
             }
+        });
+    <?php endif; ?>
+
+    // Trigger Success Popup on Refund Flash
+    <?php if (!empty($refundSuccess)): ?>
+        Swal.fire({
+            icon: 'success',
+            title: 'Refund Request Submitted!',
+            html: `
+                <div style="text-align: left; font-size: 13px; line-height: 1.8; color: #3f3f46;">
+                    <p style="margin-bottom: 8px;">Your refund request has been successfully filed and sent to the Accounting Office for assessment.</p>
+                    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 12px; margin: 10px 0;">
+                        <p style="margin: 3px 0;"><strong>Reference No:</strong> <code style="font-weight: 700; color: #0b3d2e;"><?= e($refundSuccess['refund_number']) ?></code></p>
+                        <p style="margin: 3px 0;"><strong>Assessment:</strong> <?= e($refundSuccess['fee_desc']) ?></p>
+                        <p style="margin: 3px 0;"><strong>Refund Amount:</strong> <span style="font-weight: 700; color: #059669;"><?= peso((float)$refundSuccess['amount']) ?></span></p>
+                        <p style="margin: 3px 0;"><strong>Status:</strong> <span style="background: #fef3c7; color: #92400e; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 4px;">Pending Accounting Review</span></p>
+                        <p style="margin: 3px 0;"><strong>Date:</strong> <?= e($refundSuccess['date']) ?></p>
+                    </div>
+                    <p style="font-size: 12px; color: #64748b; margin-top: 6px;">Once evaluated and approved, the amount will be adjusted on your tuition ledger, and an official confirmation email will be sent to both you and your parent.</p>
+                </div>
+            `,
+            confirmButtonText: 'Understood',
+            confirmButtonColor: '#0b3d2e'
         });
     <?php endif; ?>
 

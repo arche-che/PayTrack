@@ -8,6 +8,7 @@ require_once __DIR__ . '/../models/Student.php';
 require_once __DIR__ . '/../models/FeeCategory.php';
 require_once __DIR__ . '/../models/TuitionFee.php';
 require_once __DIR__ . '/../models/Payment.php';
+require_once __DIR__ . '/../models/Refund.php';
 require_once __DIR__ . '/../config/mailer.php';
 
 class AccountingController
@@ -325,6 +326,86 @@ class AccountingController
     }
 
     /**
+     * Approve a student's refund request:
+     * - Marks request approved with accounting remarks
+     * - Deducts refunded amount from tuition assessment amount_paid (increasing remaining balance)
+     * - Dispatches official approval notice to student & parent emails
+     */
+    public static function approveRefund(): void
+    {
+        Auth::requireRole('accounting');
+        verify_csrf();
+
+        $refundId = (int) ($_POST['refund_id'] ?? 0);
+        $notes = trim((string) ($_POST['notes'] ?? ''));
+
+        $refund = Refund::findById($refundId);
+        if (!$refund || $refund['status'] !== 'pending') {
+            Auth::setFlash('error', 'Refund request not found or already processed.');
+            redirect(APP_URL . '/public/accounting/?view=refunds');
+        }
+
+        $success = Refund::approve($refundId, (int) Auth::userId(), $notes);
+        if (!$success) {
+            Auth::setFlash('error', 'Failed to approve refund request. Please check the assessment record.');
+            redirect(APP_URL . '/public/accounting/?view=refunds');
+        }
+
+        // Fetch updated student and fee records for notification email
+        $student = Student::findById((int) $refund['student_id']);
+        $fee = TuitionFee::findById((int) $refund['tuition_fee_id']);
+        $updatedRefund = Refund::findById($refundId);
+
+        if ($student && $fee && $updatedRefund) {
+            Mailer::sendRefundApprovalNotice($student, $updatedRefund, $fee, $notes);
+        }
+
+        Auth::setFlash('success', "Refund {$refund['refund_number']} for " . peso($refund['amount']) . " approved successfully! Student balance has been adjusted and confirmation emails dispatched to student and parent.");
+        redirect(APP_URL . '/public/accounting/?view=refunds');
+    }
+
+    /**
+     * Reject a student's refund request with explanation reason
+     */
+    public static function rejectRefund(): void
+    {
+        Auth::requireRole('accounting');
+        verify_csrf();
+
+        $refundId = (int) ($_POST['refund_id'] ?? 0);
+        $rejectionReason = trim((string) ($_POST['rejection_reason'] ?? ''));
+
+        if (empty($rejectionReason)) {
+            Auth::setFlash('error', 'Please provide a valid explanation reason for rejecting the student refund request.');
+            redirect(APP_URL . '/public/accounting/?view=refunds');
+        }
+
+        $refund = Refund::findById($refundId);
+        if (!$refund || $refund['status'] !== 'pending') {
+            Auth::setFlash('error', 'Refund request not found or already processed.');
+            redirect(APP_URL . '/public/accounting/?view=refunds');
+        }
+
+        $success = Refund::reject($refundId, (int) Auth::userId(), $rejectionReason);
+        if (!$success) {
+            Auth::setFlash('error', 'Failed to reject refund request.');
+            redirect(APP_URL . '/public/accounting/?view=refunds');
+        }
+
+        // Dispatch status update notice to student and parent
+        $student = Student::findById((int) $refund['student_id']);
+        $fee = TuitionFee::findById((int) $refund['tuition_fee_id']);
+        $updatedRefund = Refund::findById($refundId);
+
+        if ($student && $fee && $updatedRefund) {
+            Mailer::sendRefundRejectionNotice($student, $updatedRefund, $fee, $rejectionReason);
+        }
+
+        Auth::setFlash('success', "Refund request {$refund['refund_number']} was rejected. Status update notice has been sent to the student and parent.");
+        redirect(APP_URL . '/public/accounting/?view=refunds');
+    }
+
+    /**
      * Real-time polling API endpoint for Accounting Portal
      * Returns new payments, updated balances, and metrics in JSON format
      */
@@ -351,18 +432,22 @@ class AccountingController
         // Calculate latest system-wide financial metrics
         $payments = Payment::all();
         $fees = TuitionFee::all();
+        $totalRefunded = Refund::getTotalApprovedAmount();
 
         $totalRevenue = 0;
         foreach ($payments as $p) {
             $totalRevenue += (float) ($p['amount'] ?? 0);
         }
+        $netRevenue = max(0.0, $totalRevenue - $totalRefunded);
+
         $totalAssessed = 0;
         foreach ($fees as $f) {
             $totalAssessed += (float) ($f['total_amount'] ?? 0);
         }
 
-        $totalReceivables = max(0, $totalAssessed - $totalRevenue);
-        $collectionRate = ($totalAssessed > 0) ? min(100, round(($totalRevenue / $totalAssessed) * 100, 1)) : 0;
+        $totalReceivables = max(0.0, $totalAssessed - $netRevenue);
+        $collectionRate = ($totalAssessed > 0) ? min(100, round(($netRevenue / $totalAssessed) * 100, 1)) : 0;
+        $pendingRefundsCount = Refund::countPending();
 
         // Fetch students with current balance
         $students = Student::all();
@@ -393,7 +478,7 @@ class AccountingController
         foreach ($fees as $fee) {
             $feeTotal = (float) ($fee['total_amount'] ?? 0);
             $feePaid = (float) ($fee['amount_paid'] ?? 0);
-            $feeRemaining = max(0, $feeTotal - $feePaid);
+            $feeRemaining = max(0.0, $feeTotal - $feePaid);
             $assessmentBalances[(int) $fee['id']] = [
                 'total_amount' => $feeTotal,
                 'amount_paid' => $feePaid,
@@ -435,11 +520,16 @@ class AccountingController
             'new_payments' => $newPayments,
             'metrics' => [
                 'total_revenue' => $totalRevenue,
+                'total_refunded' => $totalRefunded,
+                'net_revenue' => $netRevenue,
                 'total_receivables' => $totalReceivables,
                 'collection_rate' => $collectionRate,
                 'formatted_revenue' => peso($totalRevenue),
+                'formatted_refunded' => peso($totalRefunded),
+                'formatted_net_revenue' => peso($netRevenue),
                 'formatted_receivables' => peso($totalReceivables),
-                'formatted_collection_rate' => $collectionRate . '%'
+                'formatted_collection_rate' => $collectionRate . '%',
+                'pending_refunds_count' => $pendingRefundsCount,
             ],
             'students' => $studentBalances,
             'assessments' => $assessmentBalances,

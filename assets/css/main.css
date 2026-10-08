@@ -810,6 +810,10 @@ tbody td {
 }
 
 /* ── SweetAlert2 Overrides ── */
+.swal2-container {
+  z-index: 10000000 !important;
+}
+
 .swal2-popup {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 13.5px;
@@ -1353,6 +1357,14 @@ div.modal-window {
   position: relative !important;
   z-index: 10501 !important;
   margin: auto !important;
+}
+
+/* ── Login popup: restore original narrow width (overrides the 680px compat rule above) ── */
+#loginModalBackdrop.modal-backdrop .modal-window,
+#loginModalBackdrop .modal-window {
+  max-width: 440px !important;
+  width: 92% !important;
+  padding: 24px 22px 20px !important;
 }
 
 /* ── Mobile Form & Table Stability ── */

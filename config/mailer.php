@@ -294,4 +294,179 @@ class Mailer
             self::send($student['parent_email'], $student['parent_name'] ?? 'Parent', "PayTrack — Tuition Assessment for {$studentName}", $html, 'tuition_assessed', $fee['id'] ?? null);
         }
     }
+
+    /**
+     * Send Refund Approval notification email to student and parent
+     */
+    public static function sendRefundApprovalNotice(array $student, array $refund, array $fee, ?string $accountingNotes = null): void
+    {
+        $loginUrl = APP_URL . '/public/';
+        $studentName = htmlspecialchars(trim(($student['first_name'] ?? '') . ' ' . ($student['last_name'] ?? '')), ENT_QUOTES, 'UTF-8');
+        $studentId = htmlspecialchars((string) ($student['student_id'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $refundNumber = htmlspecialchars((string) ($refund['refund_number'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $refundAmount = (float) ($refund['amount'] ?? 0);
+        $reason = htmlspecialchars((string) ($refund['reason'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $feeDesc = htmlspecialchars((string) ($fee['description'] ?? 'Tuition Assessment'), ENT_QUOTES, 'UTF-8');
+        $orInfo = !empty($refund['or_number']) ? htmlspecialchars((string) $refund['or_number'], ENT_QUOTES, 'UTF-8') : 'Direct Assessment Refund';
+
+        $totalFee = (float) ($fee['total_amount'] ?? 0);
+        $amountPaid = (float) ($fee['amount_paid'] ?? 0);
+        $remainingBalance = max(0.0, $totalFee - $amountPaid);
+
+        $notesBlock = '';
+        if (!empty($accountingNotes)) {
+            $notesEscaped = htmlspecialchars(trim($accountingNotes), ENT_QUOTES, 'UTF-8');
+            $notesBlock = "
+                <div style='margin-top: 14px; padding: 12px 14px; background: #ecfdf5; border-left: 4px solid #10b981; border-radius: 6px;'>
+                    <div style='font-size: 11.5px; font-weight: bold; color: #065f46; letter-spacing: 0.5px;'>ACCOUNTING OFFICE REMARKS</div>
+                    <div style='font-size: 13px; color: #047857; margin-top: 3px;'>{$notesEscaped}</div>
+                </div>";
+        }
+
+        $html = "
+            <div style='margin:0;padding:24px;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#1e293b;'>
+                <table role='presentation' style='width:100%;max-width:620px;margin:auto;border-collapse:collapse;background:#ffffff;border:1px solid #dbe3ec;border-radius:14px;overflow:hidden;'>
+                    <tr>
+                        <td style='padding:24px 28px;background:#0b3d2e;color:#fff;'>
+                            <div style='font-size:12px;letter-spacing:1px;font-weight:bold;opacity:.8'>PAYTRACK TUITION MANAGEMENT</div>
+                            <div style='font-size:24px;font-weight:bold;margin-top:5px'>Refund Request Approved</div>
+                            <div style='font-size:13px;margin-top:6px;opacity:.9'>Official Notice of Tuition Adjustment &amp; Refund Approval</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style='padding:25px 28px;'>
+                            <p style='margin:0 0 16px;font-size:15px'>Hello <strong>{$studentName}</strong>,</p>
+                            <p style='margin:0 0 20px;font-size:14px;line-height:1.55'>
+                                Your request for tuition refund has been <strong>reviewed and officially approved</strong> by the Accounting Office.
+                                The refunded amount has been processed and your student tuition ledger and balance have been adjusted accordingly.
+                            </p>
+
+                            <div style='padding:16px 18px;background:#f8fafc;border:1px solid #dbe3ec;border-radius:10px;'>
+                                <div style='display:flex;justify-content:space-between;align-items:center;'>
+                                    <div>
+                                        <div style='font-size:11px;color:#64748b;font-weight:bold;letter-spacing:.6px'>REFUND REFERENCE NO.</div>
+                                        <div style='font-size:18px;font-family:monospace;font-weight:bold;color:#0b3d2e;margin:2px 0 10px'>{$refundNumber}</div>
+                                    </div>
+                                    <div style='display:inline-block;padding:4px 10px;background:#dcfce7;color:#166534;font-size:12px;font-weight:bold;border-radius:6px;'>
+                                        APPROVED
+                                    </div>
+                                </div>
+
+                                <table role='presentation' style='width:100%;border-collapse:collapse;font-size:13px;'>
+                                    <tr><td style='padding:6px 0;color:#64748b'>Student ID</td><td style='padding:6px 0;text-align:right;font-weight:bold'>{$studentId}</td></tr>
+                                    <tr><td style='padding:6px 0;color:#64748b'>Assessment Term</td><td style='padding:6px 0;text-align:right;font-weight:bold'>{$feeDesc}</td></tr>
+                                    <tr><td style='padding:6px 0;color:#64748b'>Associated Receipt / Transaction</td><td style='padding:6px 0;text-align:right;font-weight:bold'>{$orInfo}</td></tr>
+                                    <tr><td style='padding:6px 0;color:#64748b'>Student Stated Reason</td><td style='padding:6px 0;text-align:right;font-style:italic;'>{$reason}</td></tr>
+                                    <tr>
+                                        <td style='padding:12px 0 4px;color:#0f172a;font-weight:bold;border-top:1px solid #dbe3ec'>Amount Refunded</td>
+                                        <td style='padding:12px 0 4px;text-align:right;font-size:20px;font-weight:bold;color:#15803d'>" . peso($refundAmount) . "</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            {$notesBlock}
+
+                            <div style='margin-top:18px;padding:14px 16px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:10px;'>
+                                <div style='font-size:12px;font-weight:bold;color:#334155;margin-bottom:8px;'>UPDATED TUITION LEDGER SUMMARY:</div>
+                                <table role='presentation' style='width:100%;border-collapse:collapse;font-size:12.5px;'>
+                                    <tr><td style='padding:4px 0;color:#64748b;'>Total Assessed:</td><td style='padding:4px 0;text-align:right;font-weight:600;'>" . peso($totalFee) . "</td></tr>
+                                    <tr><td style='padding:4px 0;color:#64748b;'>Adjusted Amount Paid:</td><td style='padding:4px 0;text-align:right;font-weight:600;color:#059669;'>" . peso($amountPaid) . "</td></tr>
+                                    <tr><td style='padding:4px 0;color:#64748b;font-weight:bold;border-top:1px solid #e2e8f0;'>Current Remaining Balance:</td><td style='padding:4px 0;text-align:right;font-weight:bold;color:#b45309;border-top:1px solid #e2e8f0;'>" . peso($remainingBalance) . "</td></tr>
+                                </table>
+                            </div>
+
+                            <p style='margin:20px 0 0;color:#64748b;font-size:12px;line-height:1.45;'>
+                                Action finalized by the Accounting Office on " . date('M d, Y h:i A') . ". You can sign in to the Student / Parent Portal to view your complete transaction history.
+                            </p>
+
+                            <p style='margin-top: 22px; text-align: center;'>
+                                <a href='{$loginUrl}' style='display: inline-block; background: #0b3d2e; color: #ffffff; padding: 11px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13.5px;'>
+                                    View in Student Portal &rarr;
+                                </a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </div>";
+
+        // Send to Student
+        self::send($student['email'], $studentName, "PayTrack — Refund Approved: {$refundNumber} (" . peso($refundAmount) . ")", $html, 'refund_approved', (int)($refund['id'] ?? null));
+
+        // Send to Parent if parent email exists
+        if (!empty($student['parent_email'])) {
+            $parentName = htmlspecialchars($student['parent_name'] ?? 'Parent / Guardian', ENT_QUOTES, 'UTF-8');
+            self::send($student['parent_email'], $parentName, "PayTrack Notice — Refund Approved for {$studentName} ({$refundNumber})", $html, 'refund_approved', (int)($refund['id'] ?? null));
+        }
+    }
+
+    /**
+     * Send Refund Rejection notification email to student and parent
+     */
+    public static function sendRefundRejectionNotice(array $student, array $refund, array $fee, string $rejectionReason): void
+    {
+        $loginUrl = APP_URL . '/public/';
+        $studentName = htmlspecialchars(trim(($student['first_name'] ?? '') . ' ' . ($student['last_name'] ?? '')), ENT_QUOTES, 'UTF-8');
+        $studentId = htmlspecialchars((string) ($student['student_id'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $refundNumber = htmlspecialchars((string) ($refund['refund_number'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $refundAmount = (float) ($refund['amount'] ?? 0);
+        $reason = htmlspecialchars((string) ($refund['reason'] ?? ''), ENT_QUOTES, 'UTF-8');
+        $feeDesc = htmlspecialchars((string) ($fee['description'] ?? 'Tuition Assessment'), ENT_QUOTES, 'UTF-8');
+        $rejReasonEscaped = htmlspecialchars(trim($rejectionReason), ENT_QUOTES, 'UTF-8');
+
+        $html = "
+            <div style='margin:0;padding:24px;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;color:#1e293b;'>
+                <table role='presentation' style='width:100%;max-width:620px;margin:auto;border-collapse:collapse;background:#ffffff;border:1px solid #dbe3ec;border-radius:14px;overflow:hidden;'>
+                    <tr>
+                        <td style='padding:24px 28px;background:#991b1b;color:#fff;'>
+                            <div style='font-size:12px;letter-spacing:1px;font-weight:bold;opacity:.8'>PAYTRACK TUITION MANAGEMENT</div>
+                            <div style='font-size:24px;font-weight:bold;margin-top:5px'>Refund Request Status Update</div>
+                            <div style='font-size:13px;margin-top:6px;opacity:.9'>Notice Regarding Refund Request {$refundNumber}</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td style='padding:25px 28px;'>
+                            <p style='margin:0 0 16px;font-size:15px'>Hello <strong>{$studentName}</strong>,</p>
+                            <p style='margin:0 0 20px;font-size:14px;line-height:1.55'>
+                                Your refund request has been evaluated by the Accounting Office. After careful assessment of the request and payment records, the refund request has been <strong>rejected</strong>.
+                            </p>
+
+                            <div style='padding:16px 18px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;margin-bottom:16px;'>
+                                <div style='font-size:11.5px;font-weight:bold;color:#991b1b;letter-spacing:0.5px;'>REASON FOR REJECTION:</div>
+                                <div style='font-size:14px;color:#7f1d1d;margin-top:5px;line-height:1.5;'>{$rejReasonEscaped}</div>
+                            </div>
+
+                            <div style='padding:14px 16px;background:#f8fafc;border:1px solid #dbe3ec;border-radius:10px;'>
+                                <table role='presentation' style='width:100%;border-collapse:collapse;font-size:13px;'>
+                                    <tr><td style='padding:4px 0;color:#64748b'>Refund Reference</td><td style='padding:4px 0;text-align:right;font-weight:bold'>{$refundNumber}</td></tr>
+                                    <tr><td style='padding:4px 0;color:#64748b'>Student ID</td><td style='padding:4px 0;text-align:right;font-weight:bold'>{$studentId}</td></tr>
+                                    <tr><td style='padding:4px 0;color:#64748b'>Assessment</td><td style='padding:4px 0;text-align:right;font-weight:bold'>{$feeDesc}</td></tr>
+                                    <tr><td style='padding:4px 0;color:#64748b'>Requested Amount</td><td style='padding:4px 0;text-align:right;font-weight:bold'>" . peso($refundAmount) . "</td></tr>
+                                    <tr><td style='padding:4px 0;color:#64748b'>Original Student Reason</td><td style='padding:4px 0;text-align:right;font-style:italic;'>{$reason}</td></tr>
+                                </table>
+                            </div>
+
+                            <p style='margin:20px 0 0;color:#64748b;font-size:12px;line-height:1.45;'>
+                                If you believe this decision was made in error or have additional supporting documents, please contact or visit the Accounting Office.
+                            </p>
+
+                            <p style='margin-top: 22px; text-align: center;'>
+                                <a href='{$loginUrl}' style='display: inline-block; background: #0f172a; color: #ffffff; padding: 11px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 13.5px;'>
+                                    Open Student Portal &rarr;
+                                </a>
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </div>";
+
+        // Send to Student
+        self::send($student['email'], $studentName, "PayTrack — Refund Request Update: {$refundNumber}", $html, 'refund_rejected', (int)($refund['id'] ?? null));
+
+        // Send to Parent if parent email exists
+        if (!empty($student['parent_email'])) {
+            $parentName = htmlspecialchars($student['parent_name'] ?? 'Parent / Guardian', ENT_QUOTES, 'UTF-8');
+            self::send($student['parent_email'], $parentName, "PayTrack Notice — Refund Request Update for {$studentName} ({$refundNumber})", $html, 'refund_rejected', (int)($refund['id'] ?? null));
+        }
+    }
 }
+

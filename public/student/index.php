@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../models/User.php';
 require_once __DIR__ . '/../../models/Student.php';
 require_once __DIR__ . '/../../models/TuitionFee.php';
 require_once __DIR__ . '/../../models/Payment.php';
+require_once __DIR__ . '/../../models/Refund.php';
 require_once __DIR__ . '/../../controllers/StudentController.php';
 
 Auth::start();
@@ -32,6 +33,8 @@ if (($_GET['action'] ?? '') === 'live_status') {
     $tRem = max(0.0, $tFees - $tPaid);
     $pct = ($tFees > 0) ? min(100, round(($tPaid / $tFees) * 100)) : 0;
     $studentPayments = Payment::getByStudentId((int) $student['id']);
+    $studentRefunds  = Refund::getByStudentId((int) $student['id']);
+    $pendingRefunds  = Refund::countPendingByStudentId((int) $student['id']);
 
     echo json_encode([
         'success' => true,
@@ -50,11 +53,13 @@ if (($_GET['action'] ?? '') === 'live_status') {
         'school_year' => $freshStudent['school_year'] ?? '',
         'items' => $primaryFee['items'] ?? [],
         'payments_count' => count($studentPayments),
+        'refunds_count' => count($studentRefunds),
+        'pending_refunds_count' => $pendingRefunds,
     ]);
     exit;
 }
 
-// Routing view: 'home' (default), 'fees', 'history', 'receipts'
+// Routing view: 'home' (default), 'fees', 'history', 'receipts', 'refunds'
 $currentView = $_GET['view'] ?? 'home';
 if ($currentView === 'password') {
     redirect(APP_URL . '/public/student/?view=home');
@@ -65,6 +70,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     if ($action === 'pay_tuition') {
         StudentController::payTuition();
+    } elseif ($action === 'request_refund') {
+        StudentController::requestRefund();
     } elseif ($action === 'change_password') {
         StudentController::updatePassword();
     }
@@ -84,6 +91,11 @@ $totalRemaining = max(0, $totalFees - $totalPaid);
 // Fetch Student Payments History
 $payments = $student ? Payment::getByStudentId($student['id']) : [];
 
+// Fetch Student Refund Requests
+$refunds = $student ? Refund::getByStudentId((int) $student['id']) : [];
+$pendingRefundsCount = $student ? Refund::countPendingByStudentId((int) $student['id']) : 0;
+$totalRefunded = $student ? Refund::getTotalApprovedAmountByStudentId((int) $student['id']) : 0.0;
+
 // Flatten fee items across all tuition records for search breakdown
 $breakdownItems = [];
 foreach ($fees as $f) {
@@ -93,6 +105,7 @@ foreach ($fees as $f) {
 }
 
 $paymentSuccess = Auth::getFlash('payment_success');
+$refundSuccess  = Auth::getFlash('refund_success');
 $successMsg = Auth::getFlash('success');
 $errorMsg = Auth::getFlash('error');
 
@@ -114,3 +127,4 @@ if ($currentView === 'receipt') {
 }
 
 require_once __DIR__ . '/../../views/student/dashboard.php';
+

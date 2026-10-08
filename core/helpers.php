@@ -110,3 +110,13 @@ function isValidName(string $name): bool
 {
     return (bool) preg_match('/^[A-Za-z\s\.\-]{2,60}$/', $name);
 }
+
+/**
+ * Generate a unique Refund Request reference number
+ * Format: REF-YYYY-XXXXX (e.g. REF-2026-00042)
+ */
+function generateRefundNumber(): string
+{
+    return 'REF-' . date('Y') . '-' . str_pad((string) mt_rand(1, 99999), 5, '0', STR_PAD_LEFT);
+}
+

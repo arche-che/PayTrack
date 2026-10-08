@@ -20,6 +20,11 @@ $accountingName = Auth::username() ?? 'accounting';
     <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/main.css">
     <link rel="stylesheet" href="<?= APP_URL ?>/assets/css/portal-chrome.css?v=<?= filemtime(__DIR__ . '/../../assets/css/portal-chrome.css') ?>">
     <style>
+        /* ── SweetAlert2 Always on Top of Modals ── */
+        .swal2-container {
+            z-index: 10000000 !important;
+        }
+
         /* ── Fullscreen Processing / Email Loading Overlay ── */
         .paytrack-loading-backdrop {
             position: fixed;
@@ -312,6 +317,16 @@ $accountingName = Auth::username() ?? 'accounting';
                 </a>
             </li>
             <li>
+                <a href="<?= APP_URL ?>/public/accounting/?view=refunds" class="nav-item <?= $currentView === 'refunds' ? 'active' : '' ?>">
+                    <span class="ic">&#8635;</span> Refund Requests
+                    <?php if (!empty($pendingRefundsCount) && $pendingRefundsCount > 0): ?>
+                        <span class="badge-count" style="background:#d97706;"><?= $pendingRefundsCount ?></span>
+                    <?php elseif (!empty($refunds) && count($refunds) > 0): ?>
+                        <span class="badge-count"><?= count($refunds) ?></span>
+                    <?php endif; ?>
+                </a>
+            </li>
+            <li>
                 <a href="<?= APP_URL ?>/public/accounting/?view=fees" class="nav-item <?= $currentView === 'fees' ? 'active' : '' ?>">
                     <span class="ic">&#128179;</span> Tuition Assessments
                     <span class="badge-count"><?= count($fees) ?></span>
@@ -525,9 +540,15 @@ $accountingName = Auth::username() ?? 'accounting';
 
                 <div class="metric-summary-grid">
                     <div class="metric-summary-card">
-                        <div class="metric-summary-label">Total Revenue Collected</div>
+                        <div class="metric-summary-label">Net Revenue Collected</div>
                         <div class="metric-summary-value" id="kpiTotalRevenue" style="color:#065f46;"><?= peso($totalRevenue) ?></div>
-                        <div class="metric-summary-sub" style="color:#059669;font-weight:600;"><?= count($payments) ?> verified payments</div>
+                        <div class="metric-summary-sub" style="color:#059669;font-weight:600;">
+                            <?php if (!empty($totalApprovedRefunds) && $totalApprovedRefunds > 0): ?>
+                                Gross: <?= peso($grossRevenue) ?> &bull; Refunded: <?= peso($totalApprovedRefunds) ?>
+                            <?php else: ?>
+                                <?= count($payments) ?> verified payments
+                            <?php endif; ?>
+                        </div>
                     </div>
                     <div class="metric-summary-card">
                         <div class="metric-summary-label">Total Assessed Tuition</div>
@@ -547,6 +568,21 @@ $accountingName = Auth::username() ?? 'accounting';
                         </div>
                     </div>
                 </div>
+
+                <?php if (!empty($pendingRefundsCount) && $pendingRefundsCount > 0): ?>
+                    <div class="section-box" style="background:#fefce8;border-color:#fde047;margin-bottom:18px;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+                            <div style="display:flex;align-items:center;gap:12px;">
+                                <span style="font-size:24px;">↺</span>
+                                <div>
+                                    <h4 style="margin:0;font-size:15px;color:#854d0e;font-weight:700;">Action Required: <?= $pendingRefundsCount ?> Student Refund Request(s) Awaiting Assessment</h4>
+                                    <p style="margin:4px 0 0;font-size:12.5px;color:#a16207;">Students and parents have filed tuition refund requests with stated reasons. Review justification and approve or reject.</p>
+                                </div>
+                            </div>
+                            <a href="<?= APP_URL ?>/public/accounting/?view=refunds" class="btn" style="background:#ca8a04;color:#fff;font-weight:700;">Assess Refunds &rarr;</a>
+                        </div>
+                    </div>
+                <?php endif; ?>
 
                 <?php if ($pendingAssessmentCount > 0): ?>
                     <div class="section-box" style="background:#fffbeb;border-color:#fde68a;">
@@ -610,6 +646,12 @@ $accountingName = Auth::username() ?? 'accounting';
                             <div class="portal-shortcut-list">
                                 <a href="<?= APP_URL ?>/public/accounting/?view=students" class="btn"><span>🎓</span> Students &amp; Balances</a>
                                 <a href="<?= APP_URL ?>/public/accounting/?view=transactions" class="btn"><span>💳</span> Payment Transactions</a>
+                                <a href="<?= APP_URL ?>/public/accounting/?view=refunds" class="btn">
+                                    <span>↺</span> Refund Approvals
+                                    <?php if (!empty($pendingRefundsCount) && $pendingRefundsCount > 0): ?>
+                                        <span class="badge" style="margin-left: auto; background: #fef3c7; color: #92400e; font-size: 11px; padding: 2px 7px; border-radius: 99px;"><?= $pendingRefundsCount ?> Pending</span>
+                                    <?php endif; ?>
+                                </a>
                                 <a href="<?= APP_URL ?>/public/accounting/?view=fees" class="btn"><span>📋</span> Tuition Assessments</a>
                                 <a href="<?= APP_URL ?>/public/accounting/?view=categories" class="btn"><span>⚙️</span> Fee Categories</a>
                             </div>
@@ -1219,6 +1261,201 @@ $accountingName = Auth::username() ?? 'accounting';
                 });
                 </script>
 
+            <!-- ============================================== -->
+            <!-- VIEW 6: REFUND REQUESTS & APPROVALS (ACCOUNTING) -->
+            <!-- ============================================== -->
+            <?php elseif ($currentView === 'refunds'): ?>
+                <?php
+                    $pendingRefundsList = array_filter($refunds, fn($r) => $r['status'] === 'pending');
+                    $approvedRefundsList = array_filter($refunds, fn($r) => $r['status'] === 'approved');
+                    $rejectedRefundsList = array_filter($refunds, fn($r) => $r['status'] === 'rejected');
+                    $pendingTotalAmt = array_sum(array_map(fn($r) => (float)$r['amount'], $pendingRefundsList));
+                ?>
+                <!-- PAGE HEADER -->
+                <div class="portal-header-row">
+                    <div class="portal-title-flex">
+                        <div class="wallet-icon-box" style="background: #fef3c7; color: #b45309;">
+                            <span style="font-size: 22px;">↺</span>
+                        </div>
+                        <div>
+                            <h1 class="portal-page-title">Refund Requests &amp; Approvals</h1>
+                            <p class="portal-page-sub">
+                                Review student refund requests, assess stated justification reasons, and approve or reject adjustments.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI METRICS -->
+                <div class="metric-summary-grid">
+                    <div class="metric-summary-card">
+                        <div class="metric-summary-label">Pending Accounting Review</div>
+                        <div class="metric-summary-value" style="color: #d97706;"><?= count($pendingRefundsList) ?></div>
+                        <div class="metric-summary-sub" style="font-weight: 600; color: #b45309;">
+                            <?= peso($pendingTotalAmt) ?> awaiting assessment
+                        </div>
+                    </div>
+                    <div class="metric-summary-card">
+                        <div class="metric-summary-label">Total Approved Refunds</div>
+                        <div class="metric-summary-value" style="color: #15803d;"><?= peso($totalApprovedRefunds) ?></div>
+                        <div class="metric-summary-sub" style="font-weight: 600; color: #166534;">
+                            <?= count($approvedRefundsList) ?> adjustments processed
+                        </div>
+                    </div>
+                    <div class="metric-summary-card">
+                        <div class="metric-summary-label">Rejected Requests</div>
+                        <div class="metric-summary-value" style="color: #dc2626;"><?= count($rejectedRefundsList) ?></div>
+                        <div class="metric-summary-sub">Declined with explanation reason</div>
+                    </div>
+                    <div class="metric-summary-card">
+                        <div class="metric-summary-label">Net Revenue Ledger</div>
+                        <div class="metric-summary-value" style="color: #065f46;"><?= peso($totalRevenue) ?></div>
+                        <div class="metric-summary-sub">Gross <?= peso($grossRevenue) ?> minus refunds</div>
+                    </div>
+                </div>
+
+                <!-- TABLE CARD -->
+                <div class="section-box" style="padding: 24px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 14px;">
+                        <!-- Filter Tabs -->
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="refundFilterTabs">
+                            <button type="button" class="btn active" data-filter="all" onclick="filterRefundTable('all', this)" style="font-size: 12.5px; font-weight: 700; padding: 7px 14px;">
+                                All Requests (<?= count($refunds) ?>)
+                            </button>
+                            <button type="button" class="btn" data-filter="pending" onclick="filterRefundTable('pending', this)" style="font-size: 12.5px; font-weight: 700; padding: 7px 14px;">
+                                ⏳ Pending Review (<?= count($pendingRefundsList) ?>)
+                            </button>
+                            <button type="button" class="btn" data-filter="approved" onclick="filterRefundTable('approved', this)" style="font-size: 12.5px; font-weight: 700; padding: 7px 14px;">
+                                ✓ Approved (<?= count($approvedRefundsList) ?>)
+                            </button>
+                            <button type="button" class="btn" data-filter="rejected" onclick="filterRefundTable('rejected', this)" style="font-size: 12.5px; font-weight: 700; padding: 7px 14px;">
+                                ✕ Rejected (<?= count($rejectedRefundsList) ?>)
+                            </button>
+                        </div>
+
+                        <!-- Search -->
+                        <div style="min-width: 260px;">
+                            <input type="text" id="refundSearchInput" placeholder="Search student, ID, ref#, OR#..." class="form-control" style="font-size: 13px; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
+                        </div>
+                    </div>
+
+                    <?php if (empty($refunds)): ?>
+                        <div style="padding: 48px 20px; text-align: center; color: #64748b;">
+                            <div style="font-size: 38px; margin-bottom: 8px; opacity: 0.5;">↺</div>
+                            <h3 style="font-size: 16px; font-weight: 700; color: #0f172a; margin: 0 0 4px;">No Refund Requests Found</h3>
+                            <p style="font-size: 13px; margin: 0;">No student refund requests have been submitted yet.</p>
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="styled-fintech-table" id="accountingRefundsTable" style="width: 100%; font-size: 13px;">
+                                <thead>
+                                    <tr>
+                                        <th>Ref Number</th>
+                                        <th>Student Details</th>
+                                        <th>Assessment / Payment</th>
+                                        <th>Refund Amount</th>
+                                        <th>Student's Valid Reason</th>
+                                        <th>Status</th>
+                                        <th>Resolution Details</th>
+                                        <th style="text-align: right;">Accounting Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($refunds as $ref): ?>
+                                        <tr class="refund-row" data-refund-id="<?= (int)$ref['id'] ?>" data-refund='<?= htmlspecialchars(json_encode($ref), ENT_QUOTES, 'UTF-8') ?>' data-status="<?= e($ref['status']) ?>" data-search="<?= strtolower(e($ref['refund_number'] . ' ' . $ref['first_name'] . ' ' . $ref['last_name'] . ' ' . $ref['student_num'] . ' ' . ($ref['or_number'] ?? '') . ' ' . $ref['reason'])) ?>">
+                                            <td style="font-family: monospace; font-weight: 700; color: #0b3d2e;">
+                                                <?= e($ref['refund_number']) ?>
+                                                <div style="font-size: 11px; font-family: sans-serif; color: #94a3b8; font-weight: normal; margin-top: 2px;">
+                                                    <?= date('M d, Y h:i A', strtotime($ref['requested_at'])) ?>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div style="font-weight: 700; color: #0f172a;"><?= e($ref['first_name'] . ' ' . $ref['last_name']) ?></div>
+                                                <div style="font-size: 11.5px; color: #64748b;">ID: <span style="font-family: monospace; font-weight: 600;"><?= e($ref['student_num']) ?></span></div>
+                                                <div style="font-size: 11px; color: #0369a1;"><?= e($ref['grade_level'] ?? 'BSCS') ?></div>
+                                                <div style="font-size: 11px; color: #64748b;"><?= e($ref['email']) ?></div>
+                                            </td>
+                                            <td>
+                                                <div style="font-weight: 600; color: #0f172a; max-width: 180px;"><?= e($ref['fee_desc']) ?></div>
+                                                <?php if (!empty($ref['or_number'])): ?>
+                                                    <div style="font-size: 11.5px; color: #0b3d2e;">
+                                                        OR#: <span style="font-family: monospace; font-weight: 700;"><?= e($ref['or_number']) ?></span>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <div style="font-size: 11px; color: #64748b;">Assessed: <?= peso((float)$ref['fee_total']) ?> &bull; Paid: <?= peso((float)$ref['fee_paid']) ?></div>
+                                            </td>
+                                            <td>
+                                                <div style="font-size: 15px; font-weight: 800; color: #0f172a;">
+                                                    <?= peso((float)$ref['amount']) ?>
+                                                </div>
+                                            </td>
+                                            <td style="max-width: 260px;">
+                                                <div style="background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 7px 10px; border-radius: 4px; font-size: 12px; color: #334155; line-height: 1.45; font-style: italic;">
+                                                    "<?= e($ref['reason']) ?>"
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <?php if ($ref['status'] === 'approved'): ?>
+                                                    <span style="display: inline-block; padding: 4px 10px; border-radius: 99px; background: #dcfce7; color: #15803d; font-size: 11.5px; font-weight: 700;">
+                                                        ✓ Approved
+                                                    </span>
+                                                <?php elseif ($ref['status'] === 'rejected'): ?>
+                                                    <span style="display: inline-block; padding: 4px 10px; border-radius: 99px; background: #fee2e2; color: #991b1b; font-size: 11.5px; font-weight: 700;">
+                                                        ✕ Rejected
+                                                    </span>
+                                                <?php else: ?>
+                                                    <span style="display: inline-block; padding: 4px 10px; border-radius: 99px; background: #fef3c7; color: #92400e; font-size: 11.5px; font-weight: 700;">
+                                                        ⏳ Pending Review
+                                                    </span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td style="max-width: 220px; font-size: 12px;">
+                                                <?php if ($ref['status'] === 'approved'): ?>
+                                                    <div style="color: #15803d; font-weight: 600;">Deducted &amp; Balance Updated</div>
+                                                    <?php if (!empty($ref['review_notes'])): ?>
+                                                        <div style="font-size: 11.5px; color: #4b5563; margin-top: 2px;">Note: <?= e($ref['review_notes']) ?></div>
+                                                    <?php endif; ?>
+                                                    <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">
+                                                        By: <?= e($ref['reviewer_name'] ?? 'Accounting Staff') ?> (<?= date('M d, Y', strtotime($ref['reviewed_at'])) ?>)
+                                                    </div>
+                                                <?php elseif ($ref['status'] === 'rejected'): ?>
+                                                    <div style="color: #b91c1c; font-weight: 600;">Declined</div>
+                                                    <div style="font-size: 11.5px; color: #7f1d1d; background: #fff1f2; padding: 4px 8px; border-radius: 4px; margin-top: 2px;">
+                                                        <?= e($ref['rejection_reason']) ?>
+                                                    </div>
+                                                    <div style="font-size: 11px; color: #94a3b8; margin-top: 2px;">
+                                                        By: <?= e($ref['reviewer_name'] ?? 'Accounting Staff') ?> (<?= date('M d, Y', strtotime($ref['reviewed_at'])) ?>)
+                                                    </div>
+                                                <?php else: ?>
+                                                    <span style="color: #94a3b8; font-style: italic;">Awaiting Accounting decision</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td style="text-align: right; white-space: nowrap;">
+                                                <?php if ($ref['status'] === 'pending'): ?>
+                                                    <div style="display: inline-flex; gap: 6px;">
+                                                        <button type="button" class="btn" style="background: #059669; color: #ffffff; font-weight: 700; font-size: 11.5px; padding: 6px 12px; border: none; border-radius: 6px;"
+                                                            onclick="openApproveRefundModal(<?= (int)$ref['id'] ?>)">
+                                                            ✓ Approve
+                                                        </button>
+                                                        <button type="button" class="btn" style="background: #ffffff; color: #dc2626; border: 1px solid #fca5a5; font-weight: 700; font-size: 11.5px; padding: 6px 12px; border-radius: 6px;"
+                                                            onclick="openRejectRefundModal(<?= (int)$ref['id'] ?>)">
+                                                            ✕ Reject
+                                                        </button>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <button type="button" class="btn" style="font-size: 11.5px; padding: 5px 10px;"
+                                                        onclick="openViewRefundModal(<?= (int)$ref['id'] ?>)">
+                                                        👁 Details
+                                                    </button>
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    <?php endif; ?>
+                </div>
             <?php endif; ?>
 
         </main>
@@ -1675,6 +1912,171 @@ $accountingName = Auth::username() ?? 'accounting';
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; padding: 0 20px 14px;">
             <button type="button" class="btn" onclick="document.getElementById('receiptModal').classList.remove('active')">Close</button>
             <button type="button" class="btn" style="background: #0b3d2e; color: #fff;" onclick="window.print()">Print Voucher</button>
+        </div>
+    </div>
+</div>
+<!-- ============================================== -->
+<!-- MODAL: APPROVE REFUND REQUEST                 -->
+<!-- ============================================== -->
+<div class="modal-backdrop" id="approveRefundModal" style="display: none;">
+    <div class="modal-window" style="max-width: 520px;">
+        <button type="button" class="modal-close-x" onclick="closeApproveRefundModal()">&times;</button>
+        <h2 class="modal-header-title" style="color: #065f46;">Assess &amp; Approve Refund</h2>
+        <p class="modal-header-sub" style="font-size: 13px; color: #64748b; margin: 2px 0 16px;">
+            Verify the student's justification reason and approve tuition balance adjustment.
+        </p>
+
+        <form method="POST" action="<?= APP_URL ?>/public/accounting/?view=refunds" id="approveRefundForm">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="approve_refund">
+            <input type="hidden" name="refund_id" id="approveRefundId">
+
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="color: #64748b;">Student:</span>
+                    <strong id="approveStudentName" style="color: #0f172a;"></strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="color: #64748b;">Student ID:</span>
+                    <span id="approveStudentNum" style="font-family: monospace; font-weight: 700;"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="color: #64748b;">Ref Number:</span>
+                    <span id="approveRefundNum" style="font-family: monospace; font-weight: 700; color: #0b3d2e;"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #64748b;">Assessment:</span>
+                    <span id="approveFeeDesc" style="font-weight: 600;"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px; border-top: 1px dashed #cbd5e1;">
+                    <span style="font-weight: 700; color: #0f172a;">Refund Amount:</span>
+                    <span id="approveRefundAmount" style="font-size: 20px; font-weight: 800; color: #15803d;"></span>
+                </div>
+            </div>
+
+            <!-- Student Stated Reason -->
+            <div style="margin-bottom: 16px;">
+                <label style="font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase;">Student Stated Reason:</label>
+                <div id="approveStudentReason" style="background: #ffffff; border: 1px solid #e2e8f0; border-left: 3px solid #0b3d2e; border-radius: 6px; padding: 10px 12px; font-size: 12.5px; color: #334155; line-height: 1.45; font-style: italic; margin-top: 4px;"></div>
+            </div>
+
+            <!-- System Effects Callout -->
+            <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px; font-size: 12px; color: #065f46; line-height: 1.5;">
+                <strong style="color: #047857;">On Approval:</strong>
+                <ul style="margin: 4px 0 0; padding-left: 18px;">
+                    <li>Amount is deducted from student's paid tuition, adjusting remaining balance.</li>
+                    <li>Accounting Net Revenue and collections reflect this adjustment.</li>
+                    <li>Official confirmation notice is emailed to student (<span id="approveStudentEmail" style="font-weight: 700;"></span>) and parent (<span id="approveParentEmail" style="font-weight: 700;"></span>).</li>
+                </ul>
+            </div>
+
+            <!-- Accounting Remarks -->
+            <div class="form-group" style="margin-bottom: 18px;">
+                <label class="form-label" for="approveNotes" style="font-size: 13px; font-weight: 700;">Accounting Remarks / Notes (Optional)</label>
+                <textarea class="form-control" name="notes" id="approveNotes" rows="2" placeholder="e.g. Approved and processed via Cashier OTC / check disbursement." style="width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px;"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="closeApproveRefundModal()" class="btn" style="flex: 1; justify-content: center; padding: 10px;">Cancel</button>
+                <button type="submit" class="btn" style="flex: 2; justify-content: center; padding: 10px; background: #059669; color: #ffffff; font-weight: 700; border: none; border-radius: 8px;">
+                    ✓ Confirm &amp; Approve Refund
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- MODAL: REJECT REFUND REQUEST                  -->
+<!-- ============================================== -->
+<div class="modal-backdrop" id="rejectRefundModal" style="display: none;">
+    <div class="modal-window" style="max-width: 480px;">
+        <button type="button" class="modal-close-x" onclick="closeRejectRefundModal()">&times;</button>
+        <h2 class="modal-header-title" style="color: #991b1b;">Reject Refund Request</h2>
+        <p class="modal-header-sub" style="font-size: 13px; color: #64748b; margin: 2px 0 16px;">
+            Provide an official reason for declining the student's refund request.
+        </p>
+
+        <form method="POST" action="<?= APP_URL ?>/public/accounting/?view=refunds" id="rejectRefundForm">
+            <?= csrf_field() ?>
+            <input type="hidden" name="action" value="reject_refund">
+            <input type="hidden" name="refund_id" id="rejectRefundId">
+
+            <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; font-size: 13px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="color: #7f1d1d;">Student:</span>
+                    <strong id="rejectStudentName" style="color: #991b1b;"></strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="color: #7f1d1d;">Ref Number:</span>
+                    <span id="rejectRefundNum" style="font-family: monospace; font-weight: 700;"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #7f1d1d;">Requested Amount:</span>
+                    <strong id="rejectRefundAmount" style="color: #b91c1c;"></strong>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 16px;">
+                <label class="form-label" for="rejectionReasonInput" style="font-size: 13px; font-weight: 700; color: #0f172a;">Official Reason for Rejection *</label>
+                <textarea class="form-control" name="rejection_reason" id="rejectionReasonInput" rows="3" required minlength="5" placeholder="Explain why this refund cannot be granted (e.g., student did not submit dropping slip within prescribed deadline)..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px;"></textarea>
+                <div style="font-size: 11.5px; color: #64748b; margin-top: 4px;">This explanation will be emailed to the student and parent.</div>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button type="button" onclick="closeRejectRefundModal()" class="btn" style="flex: 1; justify-content: center; padding: 10px;">Cancel</button>
+                <button type="submit" class="btn" style="flex: 2; justify-content: center; padding: 10px; background: #dc2626; color: #ffffff; font-weight: 700; border: none; border-radius: 8px;">
+                    ✕ Reject Refund Request
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ============================================== -->
+<!-- MODAL: VIEW REFUND DETAILS                    -->
+<!-- ============================================== -->
+<div class="modal-backdrop" id="viewRefundModal" style="display: none;">
+    <div class="modal-window" style="max-width: 520px;">
+        <button type="button" class="modal-close-x" onclick="closeViewRefundModal()">&times;</button>
+        <h2 class="modal-header-title">Refund Request Details</h2>
+        <p class="modal-header-sub" id="viewRefundSub" style="font-size: 13px; color: #64748b; margin: 2px 0 16px;"></p>
+
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 13px;">
+            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="color: #64748b;">Student:</span>
+                    <strong id="viewStudentName"></strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="color: #64748b;">Student ID:</span>
+                    <span id="viewStudentNum" style="font-family: monospace; font-weight: 600;"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span style="color: #64748b;">Assessment:</span>
+                    <span id="viewFeeDesc"></span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #64748b;">Related Receipt:</span>
+                    <span id="viewORNum" style="font-family: monospace;"></span>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px;">
+                <span style="font-weight: 700; color: #0f172a;">Refund Amount:</span>
+                <span id="viewRefundAmount" style="font-size: 18px; font-weight: 800; color: #0b3d2e;"></span>
+            </div>
+
+            <div>
+                <label style="font-size: 11.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Student Stated Reason:</label>
+                <div id="viewStudentReason" style="background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 10px 12px; font-size: 12.5px; color: #334155; line-height: 1.45; font-style: italic; border-radius: 4px; margin-top: 4px;"></div>
+            </div>
+
+            <div id="viewResolutionBox" style="border-radius: 8px; padding: 12px 14px;"></div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 18px;">
+            <button type="button" onclick="closeViewRefundModal()" class="btn" style="padding: 9px 18px;">Close</button>
         </div>
     </div>
 </div>
@@ -2429,6 +2831,226 @@ $accountingName = Auth::username() ?? 'accounting';
             }
         });
     }
+
+    // ── Refund Modals Logic ──
+    const REFUND_RECORDS = <?= json_encode(array_column($refunds ?? [], null, 'id'), JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
+    const approveRefundModal = document.getElementById('approveRefundModal');
+    const rejectRefundModal = document.getElementById('rejectRefundModal');
+    const viewRefundModal = document.getElementById('viewRefundModal');
+
+    function getRefundDataById(refOrId) {
+        if (typeof refOrId === 'object' && refOrId !== null) return refOrId;
+        if (REFUND_RECORDS && REFUND_RECORDS[refOrId]) return REFUND_RECORDS[refOrId];
+        const row = document.querySelector(`tr[data-refund-id="${refOrId}"]`);
+        if (row && row.getAttribute('data-refund')) {
+            try { return JSON.parse(row.getAttribute('data-refund')); } catch(e){}
+        }
+        return null;
+    }
+
+    window.openApproveRefundModal = function(refOrId) {
+        const ref = getRefundDataById(refOrId);
+        if (!ref || !approveRefundModal) {
+            console.error('Approve refund record not found for:', refOrId);
+            return;
+        }
+        document.getElementById('approveRefundId').value = ref.id;
+        document.getElementById('approveStudentName').textContent = `${ref.first_name} ${ref.last_name}`;
+        document.getElementById('approveStudentNum').textContent = ref.student_num || '';
+        document.getElementById('approveRefundNum').textContent = ref.refund_number || '';
+        document.getElementById('approveFeeDesc').textContent = ref.fee_desc || 'Tuition Assessment';
+        document.getElementById('approveRefundAmount').textContent = '₱' + parseFloat(ref.amount).toLocaleString('en-PH', {minimumFractionDigits: 2});
+        document.getElementById('approveStudentReason').textContent = `"${ref.reason}"`;
+        document.getElementById('approveStudentEmail').textContent = ref.email || 'N/A';
+        document.getElementById('approveParentEmail').textContent = ref.parent_email || 'None on file';
+        document.getElementById('approveNotes').value = '';
+
+        approveRefundModal.style.display = 'flex';
+        approveRefundModal.classList.add('active', 'show');
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeApproveRefundModal = function() {
+        if (!approveRefundModal) return;
+        approveRefundModal.style.display = 'none';
+        approveRefundModal.classList.remove('active', 'show');
+        document.body.style.overflow = '';
+    };
+
+    window.openRejectRefundModal = function(refOrId) {
+        const ref = getRefundDataById(refOrId);
+        if (!ref || !rejectRefundModal) {
+            console.error('Reject refund record not found for:', refOrId);
+            return;
+        }
+        document.getElementById('rejectRefundId').value = ref.id;
+        document.getElementById('rejectStudentName').textContent = `${ref.first_name} ${ref.last_name}`;
+        document.getElementById('rejectRefundNum').textContent = ref.refund_number || '';
+        document.getElementById('rejectRefundAmount').textContent = '₱' + parseFloat(ref.amount).toLocaleString('en-PH', {minimumFractionDigits: 2});
+        document.getElementById('rejectionReasonInput').value = '';
+
+        rejectRefundModal.style.display = 'flex';
+        rejectRefundModal.classList.add('active', 'show');
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeRejectRefundModal = function() {
+        if (!rejectRefundModal) return;
+        rejectRefundModal.style.display = 'none';
+        rejectRefundModal.classList.remove('active', 'show');
+        document.body.style.overflow = '';
+    };
+
+    window.openViewRefundModal = function(refOrId) {
+        const ref = getRefundDataById(refOrId);
+        if (!ref || !viewRefundModal) return;
+        document.getElementById('viewRefundSub').textContent = `Reference: ${ref.refund_number}`;
+        document.getElementById('viewStudentName').textContent = `${ref.first_name} ${ref.last_name}`;
+        document.getElementById('viewStudentNum').textContent = ref.student_num || '';
+        document.getElementById('viewFeeDesc').textContent = ref.fee_desc || '';
+        document.getElementById('viewORNum').textContent = ref.or_number ? `OR# ${ref.or_number}` : 'Overall assessment credit';
+        document.getElementById('viewRefundAmount').textContent = '₱' + parseFloat(ref.amount).toLocaleString('en-PH', {minimumFractionDigits: 2});
+        document.getElementById('viewStudentReason').textContent = `"${ref.reason}"`;
+
+        const resBox = document.getElementById('viewResolutionBox');
+        if (ref.status === 'approved') {
+            resBox.style.background = '#ecfdf5';
+            resBox.style.border = '1px solid #a7f3d0';
+            resBox.style.color = '#065f46';
+            resBox.innerHTML = `
+                <strong style="color:#047857;">✓ Status: Approved & Deducted</strong>
+                <div style="margin-top:4px;font-size:12px;"><strong>Accounting Remarks:</strong> ${escapeHtml(ref.review_notes || 'Approved')}</div>
+                <div style="font-size:11px;color:#059669;margin-top:2px;">Reviewed by: ${escapeHtml(ref.reviewer_name || 'Accounting Staff')} on ${ref.reviewed_at ? new Date(ref.reviewed_at).toLocaleString() : ''}</div>
+            `;
+        } else if (ref.status === 'rejected') {
+            resBox.style.background = '#fef2f2';
+            resBox.style.border = '1px solid #fecaca';
+            resBox.style.color = '#991b1b';
+            resBox.innerHTML = `
+                <strong style="color:#b91c1c;">✕ Status: Declined</strong>
+                <div style="margin-top:4px;font-size:12px;"><strong>Reason:</strong> ${escapeHtml(ref.rejection_reason || 'Declined')}</div>
+                <div style="font-size:11px;color:#dc2626;margin-top:2px;">Reviewed by: ${escapeHtml(ref.reviewer_name || 'Accounting Staff')} on ${ref.reviewed_at ? new Date(ref.reviewed_at).toLocaleString() : ''}</div>
+            `;
+        } else {
+            resBox.style.background = '#fefce8';
+            resBox.style.border = '1px solid #fef08a';
+            resBox.style.color = '#854d0e';
+            resBox.innerHTML = `<strong>⏳ Status: Pending Review</strong><div style="margin-top:2px;font-size:12px;">Submitted on ${new Date(ref.requested_at).toLocaleString()}</div>`;
+        }
+
+        viewRefundModal.style.display = 'flex';
+        viewRefundModal.classList.add('active', 'show');
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeViewRefundModal = function() {
+        if (!viewRefundModal) return;
+        viewRefundModal.style.display = 'none';
+        viewRefundModal.classList.remove('active', 'show');
+        document.body.style.overflow = '';
+    };
+
+    // Filter table
+    window.filterRefundTable = function(status, btn) {
+        document.querySelectorAll('#refundFilterTabs .btn').forEach(b => {
+            b.classList.remove('active');
+            b.style.background = '';
+            b.style.color = '';
+        });
+        if (btn) {
+            btn.classList.add('active');
+            btn.style.background = '#0b3d2e';
+            btn.style.color = '#ffffff';
+        }
+
+        const rows = document.querySelectorAll('#accountingRefundsTable .refund-row');
+        rows.forEach(r => {
+            const rowStatus = r.getAttribute('data-status');
+            if (status === 'all' || rowStatus === status) {
+                r.style.display = '';
+            } else {
+                r.style.display = 'none';
+            }
+        });
+    };
+
+    // Search filter
+    document.getElementById('refundSearchInput')?.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        document.querySelectorAll('#accountingRefundsTable .refund-row').forEach(row => {
+            const data = row.getAttribute('data-search') || '';
+            row.style.display = data.includes(query) ? '' : 'none';
+        });
+    });
+
+    // Confirmation before submitting approve form
+    document.getElementById('approveRefundForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const studentName = document.getElementById('approveStudentName')?.textContent || 'Student';
+        const amount = document.getElementById('approveRefundAmount')?.textContent || '';
+        Swal.fire({
+            title: 'Approve & Adjust Balance?',
+            html: `Are you sure you want to approve this refund of <strong>${amount}</strong> for <strong>${studentName}</strong>?<br><br><small style="color:#64748b;">This will deduct from their paid tuition, update net revenue, and automatically send notification emails to the student and parent.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Approve & Send Email',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#059669',
+            cancelButtonColor: '#94a3b8'
+        }).then(result => {
+            if (result.isConfirmed) {
+                closeApproveRefundModal();
+                const overlay = document.getElementById('accountingLoadingOverlay');
+                if (overlay) {
+                    const title = document.getElementById('accountingLoadingTitle');
+                    const desc = document.getElementById('accountingLoadingDesc');
+                    if (title) title.textContent = 'Approving Refund & Updating Ledger...';
+                    if (desc) desc.textContent = 'Please wait while student balance is adjusted and confirmation emails are dispatched to the student and parent.';
+                    overlay.classList.add('active');
+                }
+                document.getElementById('approveRefundForm').submit();
+            }
+        });
+    });
+
+    // Confirmation before submitting reject form
+    document.getElementById('rejectRefundForm')?.addEventListener('submit', function(e) {
+        const reason = (document.getElementById('rejectionReasonInput')?.value || '').trim();
+        if (reason.length < 5) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'warning',
+                title: 'Explanation Required',
+                text: 'Please provide at least 5 characters explaining why the refund is being declined.'
+            });
+            return;
+        }
+
+        e.preventDefault();
+        Swal.fire({
+            title: 'Reject Refund Request?',
+            text: 'An email notice containing your rejection reason will be sent to the student and parent.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, Decline Request',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#dc2626',
+            cancelButtonColor: '#94a3b8'
+        }).then(result => {
+            if (result.isConfirmed) {
+                closeRejectRefundModal();
+                const overlay = document.getElementById('accountingLoadingOverlay');
+                if (overlay) {
+                    const title = document.getElementById('accountingLoadingTitle');
+                    const desc = document.getElementById('accountingLoadingDesc');
+                    if (title) title.textContent = 'Declining Refund Request...';
+                    if (desc) desc.textContent = 'Please wait while the update is recorded and explanation notice is emailed to the student and parent.';
+                    overlay.classList.add('active');
+                }
+                document.getElementById('rejectRefundForm').submit();
+            }
+        });
+    });
 
     // Start AJAX polling every 2.5 seconds
     setInterval(pollRealtimeAjax, 2500);

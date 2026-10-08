@@ -11,6 +11,7 @@ USE `paytrack`;
 
 -- Safeguard: Drop existing tables in reverse dependency order
 SET FOREIGN_KEY_CHECKS = 0;
+DROP TABLE IF EXISTS `refund_requests`;
 DROP TABLE IF EXISTS `email_logs`;
 DROP TABLE IF EXISTS `payments`;
 DROP TABLE IF EXISTS `tuition_fee_items`;
@@ -142,13 +143,45 @@ CREATE TABLE `payments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
--- 7. EMAIL LOGS (audit trail)
+-- 7. REFUND REQUESTS (student refund requests & accounting decisions)
+-- ------------------------------------------------------------
+CREATE TABLE `refund_requests` (
+  `id`               INT UNSIGNED     NOT NULL AUTO_INCREMENT,
+  `refund_number`    VARCHAR(50)      NOT NULL UNIQUE,
+  `student_id`       INT UNSIGNED     NOT NULL,
+  `tuition_fee_id`   INT UNSIGNED     NOT NULL,
+  `payment_id`       INT UNSIGNED     NULL,
+  `amount`           DECIMAL(12,2)    NOT NULL,
+  `reason`           TEXT             NOT NULL,
+  `status`           ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `reviewed_by`      INT UNSIGNED     NULL,
+  `review_notes`     TEXT             NULL,
+  `rejection_reason` TEXT             NULL,
+  `requested_at`     DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `reviewed_at`      DATETIME         NULL,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `fk_refunds_student`
+    FOREIGN KEY (`student_id`) REFERENCES `students` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_refunds_fee`
+    FOREIGN KEY (`tuition_fee_id`) REFERENCES `tuition_fees` (`id`)
+    ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT `fk_refunds_payment`
+    FOREIGN KEY (`payment_id`) REFERENCES `payments` (`id`)
+    ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_refunds_reviewer`
+    FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`id`)
+    ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------
+-- 8. EMAIL LOGS (audit trail)
 -- ------------------------------------------------------------
 CREATE TABLE `email_logs` (
   `id`               INT UNSIGNED     NOT NULL AUTO_INCREMENT,
   `recipient_email`  VARCHAR(150)     NOT NULL,
   `subject`          VARCHAR(255)     NOT NULL,
-  `type`             ENUM('account_created','accounting_account_created','new_student_accounting_alert','tuition_assessed','payment_confirmation','payment_reminder','other') NOT NULL,
+  `type`             ENUM('account_created','accounting_account_created','new_student_accounting_alert','tuition_assessed','payment_confirmation','payment_reminder','refund_approved','refund_rejected','other') NOT NULL,
   `related_id`       INT UNSIGNED     NULL,
   `status`           ENUM('sent','failed') NOT NULL DEFAULT 'sent',
   `error_message`    TEXT             NULL,
@@ -162,3 +195,6 @@ CREATE INDEX `idx_fees_student_id`      ON `tuition_fees`      (`student_id`);
 CREATE INDEX `idx_items_fee_id`         ON `tuition_fee_items` (`tuition_fee_id`);
 CREATE INDEX `idx_payments_student_id`  ON `payments`          (`student_id`);
 CREATE INDEX `idx_payments_or`          ON `payments`          (`or_number`);
+CREATE INDEX `idx_refunds_student_id`   ON `refund_requests`   (`student_id`);
+CREATE INDEX `idx_refunds_fee_id`       ON `refund_requests`   (`tuition_fee_id`);
+CREATE INDEX `idx_refunds_status`       ON `refund_requests`   (`status`);

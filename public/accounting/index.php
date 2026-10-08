@@ -8,6 +8,7 @@ require_once __DIR__ . '/../../models/Student.php';
 require_once __DIR__ . '/../../models/FeeCategory.php';
 require_once __DIR__ . '/../../models/TuitionFee.php';
 require_once __DIR__ . '/../../models/Payment.php';
+require_once __DIR__ . '/../../models/Refund.php';
 require_once __DIR__ . '/../../controllers/AccountingController.php';
 
 Auth::start();
@@ -31,6 +32,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'record_payment':
             AccountingController::recordManualPayment();
             break;
+        case 'approve_refund':
+            AccountingController::approveRefund();
+            break;
+        case 'reject_refund':
+            AccountingController::rejectRefund();
+            break;
         case 'save_fee_category':
             AccountingController::saveFeeCategory();
             break;
@@ -43,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Routing view: 'home' (default), 'students', 'transactions', 'fees', 'categories', 'logs'
+// Routing view: 'home' (default), 'students', 'transactions', 'fees', 'categories', 'refunds', 'logs'
 $currentView = $_GET['view'] ?? 'home';
 
 $students = Student::all();
@@ -56,6 +63,11 @@ unset($feeItem);
 $payments = Payment::all();
 $allFeeCategories = FeeCategory::all();
 $feeCategories = FeeCategory::allActive();
+
+// Refund requests data
+$refunds = Refund::all();
+$pendingRefundsCount = Refund::countPending();
+$totalApprovedRefunds = Refund::getTotalApprovedAmount();
 
 // Check assessment status for each student
 $pendingAssessmentCount = 0;
@@ -71,15 +83,18 @@ foreach ($students as &$s) {
 unset($s);
 
 // Compute Financial Summary Metrics
-$totalRevenue = 0;
+$grossRevenue = 0;
 foreach ($payments as $p) {
-    $totalRevenue += (float) ($p['amount'] ?? 0);
+    $grossRevenue += (float) ($p['amount'] ?? 0);
 }
+// Net collections in Accounting ledger reflecting approved refunds
+$totalRevenue = max(0.0, $grossRevenue - $totalApprovedRefunds);
+
 $totalAssessed = 0;
 foreach ($fees as $f) {
     $totalAssessed += (float) ($f['total_amount'] ?? 0);
 }
-$totalReceivables = max(0, $totalAssessed - $totalRevenue);
+$totalReceivables = max(0.0, $totalAssessed - $totalRevenue);
 $collectionRate = ($totalAssessed > 0) ? min(100, round(($totalRevenue / $totalAssessed) * 100, 1)) : 0;
 
 // Query email logs
