@@ -994,6 +994,7 @@ $studentError = static fn(string $key): string => !empty($studentFormErrors[$key
                     <select class="form-control" name="course" id="newCourse">
                         <option value="BSCS" <?= $studentValue('course', 'BSCS') === 'BSCS' ? 'selected' : '' ?>>BS Computer Science</option>
                         <option value="BSIT" <?= $studentValue('course') === 'BSIT' ? 'selected' : '' ?>>BS Information Tech</option>
+                        <option value="BSA" <?= $studentValue('course') === 'BSA' ? 'selected' : '' ?>>BS Accountancy</option>
                         <option value="BSEE" <?= $studentValue('course') === 'BSEE' ? 'selected' : '' ?>>BS Electrical Eng</option>
                         <option value="BSHM" <?= $studentValue('course') === 'BSHM' ? 'selected' : '' ?>>BS Hospitality Mgt</option>
                         <option value="BSIE" <?= $studentValue('course') === 'BSIE' ? 'selected' : '' ?>>BS Industrial Eng</option>
@@ -1002,7 +1003,21 @@ $studentError = static fn(string $key): string => !empty($studentFormErrors[$key
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="newSection">Section Code *</label>
-                    <input type="text" class="form-control" name="section_code" id="newSection" required value="<?= $studentValue('section_code', '11A1') ?>" placeholder="e.g. 11A1">
+                    <select class="form-control" name="section_code" id="newSection" required>
+                        <?php foreach (Curriculum::getAllSectionCodes() as $group => $codes): ?>
+                            <optgroup label="<?= htmlspecialchars($group, ENT_QUOTES) ?>">
+                                <?php foreach ($codes as $code => $label): ?>
+                                    <option value="<?= htmlspecialchars($code, ENT_QUOTES) ?>"
+                                        <?= $studentValue('section_code', '11A1') === $code ? 'selected' : '' ?>>
+                                        <?= htmlspecialchars($label, ENT_QUOTES) ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                        <?php endforeach; ?>
+                    </select>
+                    <small style="font-size:10.5px;color:#64748b;display:block;margin-top:3px;">
+                        Format: <strong>[Year][Sem][Time: M/A/E][Type: 1-3]</strong> — Subjects based on Year &amp; Semester only
+                    </small>
                 </div>
             </div>
 

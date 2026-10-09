@@ -63,7 +63,12 @@ class AccountingController
         }
 
         // Class & Academic Details
+        $course      = trim($_POST['course'] ?? '');
+        $sectionCode = trim($_POST['section_code'] ?? '');
         $gradeLevel  = trim($_POST['grade_level'] ?? ($student['grade_level'] ?? 'BSCS 11A1'));
+        if (!empty($course) && !empty($sectionCode)) {
+            $gradeLevel = "{$course} {$sectionCode}";
+        }
         $schoolYear  = trim($_POST['school_year'] ?? (date('Y') . '-' . (date('Y') + 1)));
         $semester    = trim($_POST['semester'] ?? '1st Semester');
         $dueDate     = trim($_POST['due_date'] ?? date('Y-m-d', strtotime('+30 days')));
@@ -79,9 +84,13 @@ class AccountingController
         foreach ($includedCats as $catId => $val) {
             $catId = (int) $catId;
             $category = FeeCategory::findById($catId);
+            if (!$category) {
+                $category = FeeCategory::findByNameOrCode($catNames[$catId] ?? '');
+            }
             if (!$category || empty($category['is_active'])) {
                 continue;
             }
+            $resolvedCatId = (int) $category['id'];
             
             // Allow accounting to customize any fee amount, or default to the category rate
             $rawAmt = isset($amounts[$catId]) && trim((string)$amounts[$catId]) !== ''
@@ -93,10 +102,10 @@ class AccountingController
                 redirect(APP_URL . '/public/accounting/?view=students');
             }
             $amt = (float) $rawAmt;
-            $name = trim($catNames[$catId] ?? ($category['name'] ?? "Fee Aspect #{$catId}"));
+            $name = trim($catNames[$catId] ?? ($category['name'] ?? "Fee Aspect #{$resolvedCatId}"));
 
             $selectedItems[] = [
-                'fee_category_id' => $catId,
+                'fee_category_id' => $resolvedCatId,
                 'category_name'   => $name,
                 'amount'          => $amt,
             ];
@@ -105,6 +114,12 @@ class AccountingController
         if (empty($selectedItems)) {
             Auth::setFlash('error', 'Please include at least one fee category in the assessment.');
             redirect(APP_URL . '/public/accounting/?view=students');
+        }
+
+        // Capture enrolled subjects JSON from form (submitted as hidden field)
+        $enrolledSubjectsJson = trim($_POST['enrolled_subjects_json'] ?? '');
+        if (empty($enrolledSubjectsJson) || !is_array(json_decode($enrolledSubjectsJson, true))) {
+            $enrolledSubjectsJson = null;
         }
 
         // Update student class and academic details
@@ -126,7 +141,8 @@ class AccountingController
                 $semester,
                 $description,
                 !empty($dueDate) ? $dueDate : null,
-                $selectedItems
+                $selectedItems,
+                $enrolledSubjectsJson
             );
             $createdFee = TuitionFee::findById($feeId);
             $actionWord = 'updated';
@@ -137,7 +153,8 @@ class AccountingController
                 $semester,
                 $description,
                 !empty($dueDate) ? $dueDate : null,
-                $selectedItems
+                $selectedItems,
+                $enrolledSubjectsJson
             );
             $createdFee = TuitionFee::findById($feeId);
             $actionWord = 'posted';

@@ -6,7 +6,7 @@ class Payment
     public static function all(): array
     {
         $db = Database::getInstance();
-        $sql = "SELECT p.*, s.first_name, s.last_name, s.student_id as student_num, tf.description as fee_desc
+        $sql = "SELECT p.*, s.first_name, s.last_name, s.student_id as student_num, s.grade_level, tf.description as fee_desc
                 FROM payments p
                 JOIN students s ON p.student_id = s.id
                 JOIN tuition_fees tf ON p.tuition_fee_id = tf.id

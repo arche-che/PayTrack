@@ -9,6 +9,7 @@ require_once __DIR__ . '/../../models/FeeCategory.php';
 require_once __DIR__ . '/../../models/TuitionFee.php';
 require_once __DIR__ . '/../../models/Payment.php';
 require_once __DIR__ . '/../../controllers/AdminController.php';
+require_once __DIR__ . '/../../core/Curriculum.php';
 
 Auth::start();
 Auth::requireRole('admin');

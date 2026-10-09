@@ -2377,11 +2377,11 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
 <!--        OFFICIAL ELECTRONIC RECEIPT VOUCHER           -->
 <!-- ==================================================== -->
 <div class="modal-backdrop" id="officialReceiptModal">
-    <div class="modal-window" style="max-width: 680px; padding: 0; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+    <div class="modal-window" style="max-width: 900px; padding: 0; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
         <!-- Top Modal Action Bar (Hidden on Print) -->
         <div class="no-print" style="display: flex; justify-content: space-between; align-items: center; background: #0b3d2e; color: #ffffff; padding: 12px 20px;">
             <div style="font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                <span>🧾</span> Official Electronic Receipt
+                <span>🧾</span> NCST Certificate of Registration (COR) &amp; Electronic Receipt
             </div>
             <div style="display: flex; align-items: center; gap: 10px;">
                 <button type="button" onclick="window.printReceiptModal()" style="background: #ffffff; color: #0b3d2e; border: none; padding: 7px 16px; border-radius: 6px; font-weight: 700; font-size: 12.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;">
@@ -2393,101 +2393,201 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
         </div>
 
         <!-- Printable Receipt Content Area -->
-        <div id="ncstPrintableReceipt" style="padding: 32px 36px; background: #ffffff; color: #0f172a; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;">
-            <!-- School Institutional Header -->
-            <div style="text-align: center; border-bottom: 2.5px solid #0b3d2e; padding-bottom: 16px; margin-bottom: 20px;">
-                <div style="font-size: 11px; font-weight: 700; letter-spacing: 2px; color: #0b3d2e; text-transform: uppercase; margin-bottom: 2px;">Republic of the Philippines</div>
-                <h1 style="font-size: 21px; font-weight: 900; color: #0b3d2e; margin: 0; letter-spacing: 0.5px; text-transform: uppercase;">
+        <div id="ncstPrintableReceipt" style="padding: 24px 28px; background: #ffffff; color: #111827; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.35; max-height: 85vh; overflow-y: auto;">
+            <!-- Header -->
+            <div style="text-align: center; border-bottom: 2px solid #000000; padding-bottom: 8px; margin-bottom: 12px;">
+                <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: #4b5563;">Republic of the Philippines</div>
+                <h1 style="font-size: 18px; font-weight: 900; color: #0b3d2e; margin: 2px 0; letter-spacing: 0.5px; text-transform: uppercase;">
                     National College of Science and Technology
                 </h1>
-                <p style="font-size: 11.5px; color: #475569; margin: 3px 0 0; line-height: 1.4;">
-                    Emilio Aguinaldo Highway, Dasmariñas City, Cavite 4114, Philippines<br>
-                    Student Tuition &amp; Assessment Management System (PayTrack)
+                <p style="font-size: 11px; color: #374151; margin: 0 0 6px;">
+                    Emilio Aguinaldo Highway, Dasmariñas City, Cavite 4114 &bull; Tel. No. (046) 416-0166
                 </p>
-                <div style="display: inline-block; margin-top: 10px; background: #f0fdf4; border: 1.5px solid #86efac; color: #166534; font-weight: 800; font-size: 12px; padding: 4px 18px; border-radius: 20px; letter-spacing: 1px;">
-                    OFFICIAL ELECTRONIC RECEIPT
+                <div style="display: inline-block; font-size: 12.5px; font-weight: 800; color: #000000; letter-spacing: 1.5px; text-transform: uppercase; border: 1.5px solid #000000; padding: 3px 18px; background: #f8fafc;">
+                    CERTIFICATE OF REGISTRATION / ASSESSMENT OF FEES
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 6px; font-weight: 600;">
+                    <span>REFERENCE / OR NO: <strong id="rcptOrNumber" style="font-family: monospace; font-size: 12px; color: #0b3d2e;">OR-2024-00001</strong></span>
+                    <span>PRINT DATE: <strong id="rcptPrintDate"><?= date('m/d/Y h:i A') ?></strong></span>
                 </div>
             </div>
 
-            <!-- Receipt Meta Bar -->
-            <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 16px; margin-bottom: 18px;">
-                <div>
-                    <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Receipt No (OR#):</span>
-                    <strong id="rcptOrNumber" style="font-size: 15px; color: #0b3d2e; font-family: monospace; margin-left: 6px;">OR-2024-00001</strong>
+            <!-- Student Info Grid -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; border: 1.5px solid #000000; margin-bottom: 12px; background: #ffffff;">
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Student Name</div>
+                    <div id="rcptStudentName" style="font-size: 11.5px; font-weight: 800; color: #000000;"><?= e($studentName) ?></div>
                 </div>
-                <div>
-                    <span style="font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase;">Date Issued:</span>
-                    <strong id="rcptDate" style="font-size: 12.5px; color: #1e293b; margin-left: 6px;">—</strong>
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Student No</div>
+                    <div id="rcptStudentId" style="font-size: 11.5px; font-weight: 800; color: #000000; font-family: monospace;"><?= e($studentNum) ?></div>
+                </div>
+                <div style="padding: 4px 8px; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Course / Program</div>
+                    <div id="rcptCourse" style="font-size: 11.5px; font-weight: 800; color: #000000;">BSIT</div>
+                </div>
+
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Year Level</div>
+                    <div id="rcptYearLevel" style="font-size: 11.5px; font-weight: 800; color: #000000;">4th Year</div>
+                </div>
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Section Code</div>
+                    <div id="rcptCourseSection" style="font-size: 11.5px; font-weight: 800; color: #000000;"><?= e($student['grade_level'] ?? '41A2') ?></div>
+                </div>
+                <div style="padding: 4px 8px; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">School Year &amp; Semester</div>
+                    <div id="rcptSchoolYearSem" style="font-size: 11px; font-weight: 700; color: #000000;">S.Y. 2026-2027 &bull; 1st Semester</div>
+                </div>
+
+                <div style="padding: 4px 8px; border-right: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Student Email</div>
+                    <div id="rcptStudentEmail" style="font-size: 11px; font-weight: 700; color: #000000;"><?= e($student['email'] ?? '—') ?></div>
+                </div>
+                <div style="padding: 4px 8px; border-right: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Parent / Guardian</div>
+                    <div id="rcptParentName" style="font-size: 11px; font-weight: 700; color: #000000;"><?= e($student['parent_name'] ?? '—') ?></div>
+                </div>
+                <div style="padding: 4px 8px;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Parent Contact No</div>
+                    <div id="rcptContact" style="font-size: 11px; font-weight: 700; color: #000000;"><?= e($student['contact_number'] ?? $student['contact'] ?? '—') ?></div>
                 </div>
             </div>
 
-            <!-- Student & Academic Particulars Grid -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px 24px; font-size: 13px; margin-bottom: 20px;">
-                <div style="border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
-                    <div style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Student Name</div>
-                    <div id="rcptStudentName" style="font-weight: 800; color: #0f172a; font-size: 14px;"><?= e($studentName) ?></div>
-                </div>
-                <div style="border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
-                    <div style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Student ID Number</div>
-                    <div id="rcptStudentId" style="font-weight: 800; color: #0f172a; font-family: monospace; font-size: 14px;"><?= e($studentNum) ?></div>
-                </div>
-                <div style="border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
-                    <div style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Course &amp; Section</div>
-                    <div id="rcptCourseSection" style="font-weight: 700; color: #0f172a;"><?= e($student['grade_level'] ?? 'BSCS 11A1') ?></div>
-                </div>
-                <div style="border-bottom: 1px dashed #e2e8f0; padding-bottom: 6px;">
-                    <div style="font-size: 10.5px; font-weight: 700; color: #64748b; text-transform: uppercase;">Payment Channel</div>
-                    <div id="rcptPaymentMethod" style="font-weight: 700; color: #0b3d2e; text-transform: uppercase;">ONLINE</div>
-                </div>
+            <!-- Specified Subjects Schedule -->
+            <div style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; background: #0b3d2e; color: #ffffff; padding: 4px 8px; margin-bottom: 2px; letter-spacing: 0.5px;">
+                SCHEDULE OF SPECIFIED ENROLLED SUBJECTS
             </div>
+            <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000000; margin-bottom: 12px; font-size: 10.5px;">
+                <thead>
+                    <tr style="background: #e2e8f0; color: #000000; font-size: 9.5px; text-transform: uppercase;">
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 10%;">Subject Code</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 32%; text-align: left;">Descriptive Title</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 6%; text-align: center;">Units</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 8%; text-align: center;">Type</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 9%; text-align: center;">Days</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 8%; text-align: center;">Start</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 8%; text-align: center;">End</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 7%; text-align: center;">Section</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 12%; text-align: center;">Room</th>
+                    </tr>
+                </thead>
+                <tbody id="rcptSubjectsTbody">
+                    <!-- Populated dynamically by JS -->
+                </tbody>
+                <tfoot>
+                    <tr style="font-weight: 800; background: #f1f5f9; border-top: 1.5px solid #000000;">
+                        <td colspan="2" style="text-align: right; padding: 4px 8px; border: 1px solid #000000;">TOTAL NUMBER OF ACADEMIC UNITS:</td>
+                        <td id="rcptTotalUnits" style="text-align: center; padding: 4px 6px; border: 1px solid #000000; font-size: 12px; color: #0b3d2e; font-weight: 900;">13</td>
+                        <td colspan="6" style="text-align: left; padding: 4px 8px; border: 1px solid #000000; font-size: 10px; color: #4b5563;">
+                            Regular Academic Load &bull; Certified by NCST Registrar
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
 
-            <!-- Payment Purpose & Breakdown Box -->
-            <div style="background: #fafafa; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 8px;">
-                    <span>Particulars / Payment Description</span>
-                    <span>Amount</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 13.5px; color: #0f172a; padding: 4px 0;">
-                    <span id="rcptFeeDesc">Tuition Fee Assessment Installment</span>
-                    <strong id="rcptAmountSub" style="color: #0b3d2e;">₱0.00</strong>
-                </div>
-            </div>
-
-            <!-- Big Highlighted Amount Box -->
-            <div style="background: #f0fdf4; border: 2px solid #86efac; border-radius: 10px; padding: 16px; text-align: center; margin-bottom: 22px;">
-                <div style="font-size: 11px; font-weight: 800; color: #166534; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;">Total Amount Received</div>
-                <div id="rcptAmount" style="font-size: 30px; font-weight: 900; color: #15803d; line-height: 1.2;">₱0.00</div>
-                <div style="font-size: 11.5px; color: #166534; font-weight: 600; margin-top: 4px;">
-                    &#10003; Verified &amp; Credited to Student Tuition Ledger
-                </div>
-            </div>
-
-            <!-- Footer Signatures & Validation -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; padding-top: 14px; border-top: 1px solid #e2e8f0; font-size: 11.5px;">
-                <div style="color: #64748b; line-height: 1.5; max-width: 320px;">
-                    <strong>National College of Science and Technology</strong><br>
-                    Official System Electronic Receipt<br>
-                    Valid for Examination Clearance &amp; Verification
-                </div>
-                <div style="text-align: center; width: 200px;">
-                    <div style="font-weight: 800; font-size: 12px; color: #0b3d2e; margin-bottom: 2px;">FINANCE &amp; CASHIERING</div>
-                    <div style="border-top: 1.5px solid #0f172a; padding-top: 4px; color: #475569; font-size: 10.5px;">
-                        Authorized Electronic Signature / Stamp
+            <!-- Bottom Grid: Assessment & Electronic Payment Details -->
+            <div style="display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <!-- Fee Assessment Breakdown -->
+                <div style="border: 1.5px solid #000000;">
+                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; background: #0b3d2e; color: #ffffff; padding: 4px 8px;">
+                        ASSESSMENT OF TUITION &amp; INSTITUTIONAL FEES
                     </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+                        <thead>
+                            <tr style="background: #e2e8f0; border-bottom: 1px solid #000000; font-size: 9.5px; text-transform: uppercase;">
+                                <th style="padding: 4px 8px; text-align: left;">Particulars / Fee Aspect</th>
+                                <th style="padding: 4px 8px; text-align: right;">Assessed Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rcptFeesTbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top: 1.5px solid #000000; border-bottom: 1.5px solid #000000; background: #f8fafc; font-weight: 800; font-size: 11px;">
+                                <td style="padding: 4px 8px;">TOTAL CASH TUITION &amp; FEES:</td>
+                                <td id="rcptCashTotal" style="padding: 4px 8px; text-align: right; color: #0b3d2e; font-size: 12px; font-weight: 900;">₱0.00</td>
+                            </tr>
+                            <tr style="font-size: 10px; color: #4b5563;">
+                                <td style="padding: 3px 8px;">Installment Interest / Surcharge:</td>
+                                <td id="rcptInstallmentCharge" style="padding: 3px 8px; text-align: right; font-weight: 600;">₱0.00</td>
+                            </tr>
+                            <tr style="background: #fdf2f8; font-weight: 800; color: #831843;">
+                                <td style="padding: 4px 8px;">TOTAL INSTALLMENT TUITION &amp; FEES:</td>
+                                <td id="rcptInstallmentTotal" style="padding: 4px 8px; text-align: right;">₱0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Payment Transaction Receipt -->
+                <div style="border: 1.5px solid #000000; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="padding: 10px 12px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #000000; padding-bottom: 4px; margin-bottom: 8px;">
+                            <span style="font-weight: 800; text-transform: uppercase; font-size: 10.5px;">PAYMENT TRANSACTION RECEIPT</span>
+                            <span id="rcptOrNumberSide" style="font-family: monospace; font-size: 12px; font-weight: 800; color: #0b3d2e;">OR-2024-00001</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px;">
+                            <span style="color: #4b5563;">Payment Channel:</span>
+                            <strong id="rcptPaymentMethod" style="color: #0b3d2e;">ONLINE</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px;">
+                            <span style="color: #4b5563;">Date &amp; Time Credited:</span>
+                            <strong id="rcptDate">—</strong>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 2px 0; font-size: 11px;">
+                            <span style="color: #4b5563;">Particulars:</span>
+                            <span id="rcptFeeDesc">Tuition Fee Assessment Installment</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; border-top: 1px dashed #cbd5e1; margin-top: 4px;">
+                            <span style="color: #4b5563;">Remaining Balance:</span>
+                            <strong id="rcptRemainingBalance" style="color: #b91c1c; font-size: 11.5px;">₱0.00</strong>
+                        </div>
+
+                        <div style="background: #ecfdf5; border: 1.5px solid #059669; padding: 8px; text-align: center; margin-top: 8px; border-radius: 4px;">
+                            <div style="font-size: 9.5px; font-weight: 800; text-transform: uppercase; color: #065f46;">Amount Paid &amp; Credited</div>
+                            <div id="rcptAmount" style="font-size: 20px; font-weight: 900; color: #047857; margin: 2px 0;">₱0.00</div>
+                            <div style="font-size: 9.5px; color: #065f46; font-weight: 600;">&#10003; PayTrack Electronic Payment Verified</div>
+                        </div>
+                    </div>
+
+                    <div style="background: #f8fafc; border-top: 1px solid #000000; padding: 6px 10px; font-size: 9.5px; color: #4b5563; text-align: center;">
+                        Certified Official Electronic Record &bull; Valid for Exam Clearance
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signatures Row -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 10px; padding-top: 8px; border-top: 1.5px solid #000000; font-size: 10px;">
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid #000000; height: 26px; margin-bottom: 4px;"></div>
+                    <div id="rcptSigStudent" style="font-weight: 800; text-transform: uppercase;"><?= e($studentName) ?></div>
+                    <div>Student / Guardian Signature</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid #000000; height: 26px; margin-bottom: 4px;"></div>
+                    <div style="font-weight: 800; text-transform: uppercase;">OFFICE OF THE REGISTRAR</div>
+                    <div>Validated &amp; Enrolled</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid #000000; height: 26px; margin-bottom: 4px;"></div>
+                    <div style="font-weight: 800; text-transform: uppercase;">ACCOUNTING &amp; CASHIER</div>
+                    <div>Assessment &amp; Payment Cleared</div>
                 </div>
             </div>
         </div>
 
         <!-- Bottom Action Bar (Hidden on Print) -->
-        <div class="no-print" style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 14px 24px; display: flex; justify-content: flex-end; gap: 10px;">
-            <button type="button" onclick="closeReceiptModal()" class="btn" style="padding: 9px 18px;">Close</button>
-            <button type="button" onclick="window.printReceiptModal()" class="btn" style="background: #0b3d2e; color: #ffffff; border: 1px solid #0b3d2e; padding: 9px 22px; font-weight: 700; gap: 6px;">
+        <div class="no-print" style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 12px 24px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" onclick="closeReceiptModal()" class="btn" style="padding: 8px 18px;">Close</button>
+            <button type="button" onclick="window.printReceiptModal()" class="btn" style="background: #0b3d2e; color: #ffffff; border: 1px solid #0b3d2e; padding: 8px 22px; font-weight: 700; gap: 6px;">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                 <span>Print Official Receipt</span>
             </button>
         </div>
     </div>
 </div>
+
 
 <!-- ========================================== -->
 <!-- MODAL: REQUEST REFUND MODAL                -->
@@ -2899,33 +2999,198 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
         });
     }
 
+    // ── Preloaded NCST Master Curriculum & Fee Schedule Engine ──
+    window.NCST_CURRICULUM = <?= json_encode(Curriculum::getAllCatalogs()) ?>;
+
+    function getCurriculumSchedule(courseSec, courseOverride) {
+        const raw = String(courseSec || '41A2').trim();
+        let year = 4, sem = 1, secSuffix = 'A2', course = 'BSIT';
+
+        if (courseOverride && window.NCST_CURRICULUM.courses[courseOverride.toUpperCase()]) {
+            course = courseOverride.toUpperCase();
+        } else {
+            const cMatch = raw.match(/\b(BSIT|BSCS|BSA|BSCRIM|BSCR|BSHM|BSIE|BSEE|ACT)\b/i);
+            if (cMatch) {
+                let found = cMatch[1].toUpperCase();
+                if (found === 'BSCR') found = 'BSCRIM';
+                if (found === 'ACT')  found = 'BSA';
+                if (window.NCST_CURRICULUM.courses[found]) course = found;
+            }
+        }
+
+        const m = raw.match(/([1-4])([1-2])([A-Z0-9]+)/i);
+        if (m) {
+            year = parseInt(m[1]);
+            sem = parseInt(m[2]);
+            secSuffix = m[3].toUpperCase();
+        } else {
+            const m2 = raw.match(/([1-4])([1-2])/i);
+            if (m2) {
+                year = parseInt(m2[1]);
+                sem = parseInt(m2[2]);
+                secSuffix = 'A1';
+            }
+        }
+
+        const secCode = `${year}${sem}${secSuffix}`;
+        const yearTexts = { 1: '1st Year', 2: '2nd Year', 3: '3rd Year', 4: '4th Year' };
+        const semTexts = { 1: '1st Semester', 2: '2nd Semester' };
+
+        const courseCatalog = (window.NCST_CURRICULUM.curricula && window.NCST_CURRICULUM.curricula[course]) 
+            ? window.NCST_CURRICULUM.curricula[course] 
+            : window.NCST_CURRICULUM.curricula['BSIT'];
+
+        const key = `${year}${sem}`;
+        const subs = courseCatalog[key] || courseCatalog['41'] || window.NCST_CURRICULUM.curricula['BSIT']['41'];
+        let totUnits = 0;
+        let labCount = 0;
+        subs.forEach(s => {
+            totUnits += (s.units || 3);
+            if (String(s.type || '').includes('LAB')) labCount++;
+        });
+
+        const rates = window.NCST_CURRICULUM.rates || {
+            unit: 645.95, lab: 1026.00, misc: 4743.49, lms: 2053.20, omr: 139.20, nstp: 1500.00
+        };
+
+        let tuitionTotal = 0, labTotal = 0;
+        let miscBase = rates.misc, lmsFee = rates.lms, omrFee = rates.omr;
+        let nstpFee = (year === 1) ? rates.nstp : 0.00;
+
+        if (course === 'BSIT' && key === '41') {
+            tuitionTotal = 8397.35;
+            labTotal = 3078.00;
+        } else {
+            tuitionTotal = Math.round(totUnits * rates.unit * 100) / 100;
+            labTotal = Math.round(labCount * rates.lab * 100) / 100;
+        }
+
+        let cashTotal = Math.round((tuitionTotal + labTotal + miscBase + lmsFee + omrFee + nstpFee) * 100) / 100;
+        if (cashTotal > 29800) {
+            tuitionTotal = Math.round((tuitionTotal - (cashTotal - 28950)) * 100) / 100;
+            cashTotal = Math.round((tuitionTotal + labTotal + miscBase + lmsFee + omrFee + nstpFee) * 100) / 100;
+        }
+
+        const instCharge = Math.round((cashTotal * 0.099175) * 100) / 100;
+        const instTotal = Math.round((cashTotal + instCharge) * 100) / 100;
+
+        const breakdown = [
+            { name: `Tuition Fee (${totUnits} Units @ ${rates.unit.toFixed(2)})`, amount: tuitionTotal },
+            { name: `Laboratory Fee (${labCount} Science/Tech Lab Subjects)`, amount: labTotal },
+            { name: 'Institutional Misc Fee (Reg, Library, Med/Dental, Energy)', amount: miscBase },
+            { name: 'Learning Management System (LMS) & Campus Cloud', amount: lmsFee }
+        ];
+        if (nstpFee > 0) {
+            breakdown.push({ name: 'NSTP / ROTC Component Fee (DND / CHED)', amount: nstpFee });
+        }
+        breakdown.push({ name: 'OMR / Exam Scoring & Educational Research', amount: omrFee });
+
+        return {
+            year, sem,
+            yearText: yearTexts[year] || `${year}th Year`,
+            semText: semTexts[sem] || `${sem}st Semester`,
+            secCode, course,
+            courseName: window.NCST_CURRICULUM.courses[course] || course,
+            fullSection: `${course} - ${secCode}`,
+            subjects: subs.map(s => ({
+                ...s,
+                section: secCode,
+                start: s.start_time || s.start || '8:00 AM',
+                end: s.end_time || s.end || '11:00 AM'
+            })),
+            totalUnits: totUnits,
+            labCount,
+            cashTotal, instCharge, instTotal,
+            breakdown
+        };
+    }
+
     // ── Official Receipt Modal & Printable Logic ──────────────
     window.openOfficialReceiptModal = function(orNum, amount, date, method, feeDesc, studentName, studentNum, course) {
         const rcptOr = document.getElementById('rcptOrNumber');
+        const rcptOrSide = document.getElementById('rcptOrNumberSide');
         const rcptD = document.getElementById('rcptDate');
         const rcptName = document.getElementById('rcptStudentName');
         const rcptId = document.getElementById('rcptStudentId');
+        const rcptCourse = document.getElementById('rcptCourse');
+        const rcptYearLevel = document.getElementById('rcptYearLevel');
         const rcptSec = document.getElementById('rcptCourseSection');
+        const rcptSem = document.getElementById('rcptSchoolYearSem');
         const rcptMeth = document.getElementById('rcptPaymentMethod');
         const rcptDesc = document.getElementById('rcptFeeDesc');
-        const rcptAmtSub = document.getElementById('rcptAmountSub');
         const rcptAmt = document.getElementById('rcptAmount');
+        const rcptSig = document.getElementById('rcptSigStudent');
+
+        const activeSec = course || '<?= e($student['grade_level'] ?? '41A2') ?>';
+        const sched = getCurriculumSchedule(activeSec);
 
         if (rcptOr) rcptOr.textContent = orNum || 'OR-2024-00001';
-        if (rcptD) rcptD.textContent = date || '—';
+        if (rcptOrSide) rcptOrSide.textContent = orNum || 'OR-2024-00001';
+        if (rcptD) rcptD.textContent = date || '<?= date("m/d/Y h:i A") ?>';
         if (rcptName) rcptName.textContent = studentName || '<?= e($studentName) ?>';
+        if (rcptSig) rcptSig.textContent = studentName || '<?= e($studentName) ?>';
         if (rcptId) rcptId.textContent = studentNum || '<?= e($studentNum) ?>';
-        if (rcptSec) rcptSec.textContent = course || '<?= e($student['grade_level'] ?? 'BSCS 11A1') ?>';
+        if (rcptCourse) rcptCourse.textContent = sched.course + ' - ' + sched.courseName;
+        if (rcptYearLevel) rcptYearLevel.textContent = sched.yearText;
+        if (rcptSec) rcptSec.textContent = sched.secCode + ' (' + sched.fullSection + ')';
+        if (rcptSem) rcptSem.textContent = 'S.Y. 2026-2027 • ' + sched.semText;
         if (rcptMeth) rcptMeth.textContent = (method || 'ONLINE').toUpperCase();
         if (rcptDesc) rcptDesc.textContent = feeDesc || 'Tuition Fee Assessment Installment';
-        if (rcptAmtSub) rcptAmtSub.textContent = amount || '₱0.00';
         if (rcptAmt) rcptAmt.textContent = amount || '₱0.00';
+
+        // Render Specified Subjects Table
+        const subTbody = document.getElementById('rcptSubjectsTbody');
+        if (subTbody) {
+            subTbody.innerHTML = sched.subjects.map(s => `
+                <tr>
+                    <td style="text-align: center; font-weight: 800; font-family: monospace; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.code)}</td>
+                    <td style="border: 1px solid #000000; padding: 4px 6px;"><strong>${escapeHtml(s.description)}</strong></td>
+                    <td style="text-align: center; font-weight: 800; border: 1px solid #000000; padding: 4px 6px;">${s.units}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.type)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.days)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.start)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.end)}</td>
+                    <td style="text-align: center; font-weight: 700; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.section)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.room)}</td>
+                </tr>
+            `).join('');
+        }
+        const totUnitsEl = document.getElementById('rcptTotalUnits');
+        if (totUnitsEl) totUnitsEl.textContent = sched.totalUnits;
+
+        // Render Fee Assessment Table
+        const feesTbody = document.getElementById('rcptFeesTbody');
+        if (feesTbody) {
+            feesTbody.innerHTML = sched.breakdown.map(b => `
+                <tr style="border-bottom: 1px dashed #cbd5e1;">
+                    <td style="padding: 3px 8px;">${escapeHtml(b.name)}</td>
+                    <td style="padding: 3px 8px; text-align: right; font-weight: 700;">₱${b.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+            `).join('');
+        }
+
+        const cashEl = document.getElementById('rcptCashTotal');
+        if (cashEl) cashEl.textContent = '₱' + sched.cashTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const instChgEl = document.getElementById('rcptInstallmentCharge');
+        if (instChgEl) instChgEl.textContent = '₱' + sched.instCharge.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const instTotEl = document.getElementById('rcptInstallmentTotal');
+        if (instTotEl) instTotEl.textContent = '₱' + sched.instTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        // Calculate remaining balance
+        const numAmt = parseFloat(String(amount || '0').replace(/[^0-9.]/g, '')) || 0;
+        const rem = Math.max(0, sched.cashTotal - numAmt);
+        const remEl = document.getElementById('rcptRemainingBalance');
+        if (remEl) {
+            remEl.textContent = '₱' + rem.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            remEl.style.color = rem > 0 ? '#b91c1c' : '#047857';
+        }
 
         const modal = document.getElementById('officialReceiptModal');
         if (modal) {
             modal.classList.add('active');
         }
     };
+
 
     window.closeReceiptModal = function() {
         const modal = document.getElementById('officialReceiptModal');

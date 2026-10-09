@@ -90,6 +90,7 @@ CREATE TABLE `tuition_fees` (
   `school_year`      VARCHAR(20)      NOT NULL,
   `semester`         VARCHAR(30)      NOT NULL DEFAULT '1st Semester',
   `description`      VARCHAR(200)     NOT NULL,
+  `enrolled_subjects` TEXT            NULL,
   `total_amount`     DECIMAL(12,2)    NOT NULL DEFAULT 0.00,
   `amount_paid`      DECIMAL(12,2)    NOT NULL DEFAULT 0.00,
   `due_date`         DATE             NULL,

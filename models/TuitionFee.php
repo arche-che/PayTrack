@@ -168,7 +168,8 @@ class TuitionFee
         string $semester,
         string $description,
         ?string $dueDate,
-        array $items
+        array $items,
+        ?string $enrolledSubjects = null
     ): int {
         $db = Database::getInstance();
 
@@ -179,10 +180,10 @@ class TuitionFee
         $totalAmount = round($totalAmount, 2);
 
         $stmt = $db->prepare(
-            "INSERT INTO tuition_fees (student_id, school_year, semester, description, total_amount, amount_paid, due_date, status)
-             VALUES (?, ?, ?, ?, ?, 0.00, ?, 'unpaid')"
+            "INSERT INTO tuition_fees (student_id, school_year, semester, description, enrolled_subjects, total_amount, amount_paid, due_date, status)
+             VALUES (?, ?, ?, ?, ?, ?, 0.00, ?, 'unpaid')"
         );
-        $stmt->execute([$studentId, $schoolYear, $semester, $description, $totalAmount, $dueDate ?: null]);
+        $stmt->execute([$studentId, $schoolYear, $semester, $description, $enrolledSubjects, $totalAmount, $dueDate ?: null]);
         $feeId = (int) $db->lastInsertId();
 
         if (!empty($items)) {
@@ -207,7 +208,8 @@ class TuitionFee
         string $semester,
         string $description,
         ?string $dueDate,
-        array $items
+        array $items,
+        ?string $enrolledSubjects = null
     ): bool {
         $db = Database::getInstance();
         $existing = self::findById($feeId);
@@ -231,10 +233,10 @@ class TuitionFee
 
         $stmt = $db->prepare(
             "UPDATE tuition_fees 
-             SET school_year = ?, semester = ?, description = ?, total_amount = ?, due_date = ?, status = ?
+             SET school_year = ?, semester = ?, description = ?, enrolled_subjects = ?, total_amount = ?, due_date = ?, status = ?
              WHERE id = ?"
         );
-        $stmt->execute([$schoolYear, $semester, $description, $totalAmount, $dueDate ?: null, $status, $feeId]);
+        $stmt->execute([$schoolYear, $semester, $description, $enrolledSubjects, $totalAmount, $dueDate ?: null, $status, $feeId]);
 
         // Delete old items and re-insert updated items
         $db->prepare("DELETE FROM tuition_fee_items WHERE tuition_fee_id = ?")->execute([$feeId]);

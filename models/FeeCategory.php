@@ -48,6 +48,25 @@ class FeeCategory
         return $row ?: null;
     }
 
+    public static function findByCode(string $code): ?array
+    {
+        $db = Database::getInstance();
+        $stmt = $db->prepare('SELECT * FROM fee_categories WHERE code = ? LIMIT 1');
+        $stmt->execute([strtolower(trim($code))]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
+    public static function findByNameOrCode(string $term): ?array
+    {
+        $db = Database::getInstance();
+        $clean = trim($term);
+        $stmt = $db->prepare('SELECT * FROM fee_categories WHERE code = ? OR LOWER(name) LIKE ? LIMIT 1');
+        $stmt->execute([strtolower($clean), '%' . strtolower($clean) . '%']);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public static function getVariableCategory(): ?array
     {
         $db = Database::getInstance();

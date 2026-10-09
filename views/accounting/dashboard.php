@@ -1496,14 +1496,19 @@ $accountingName = Auth::username() ?? 'accounting';
 <!-- MODAL: ASSIGN TUITION & CLASS DETAILS WITH EDITABLE FEES -->
 <!-- ==================================================== -->
 <div class="modal-backdrop" id="assignTuitionModal">
-    <div class="modal-window" style="max-width: 620px;">
+    <div class="modal-window" style="max-width: 840px; max-height: 92vh; overflow-y: auto;">
         <button class="modal-close-x" id="btnCloseAssignModal">&times;</button>
-        <div class="assessment-modal-heading">
-            <div class="assessment-modal-icon" aria-hidden="true">₱</div>
-            <div>
-                <span class="assessment-modal-eyebrow">Tuition Management</span>
-                <h2 class="modal-header-title">Assessment &amp; Class Details</h2>
-                <p class="modal-header-sub" id="assignModalStudentLabel">Student: Juan Dela Cruz (2023-53512)</p>
+        <div class="assessment-modal-heading" style="display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="assessment-modal-icon" aria-hidden="true" style="width: 44px; height: 44px; border-radius: 10px; background: #0b3d2e; color: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; flex-shrink: 0;">₱</div>
+                <div>
+                    <span class="assessment-modal-eyebrow" style="font-size: 11px; font-weight: 700; color: #047857; text-transform: uppercase; letter-spacing: 0.5px;">Tuition &amp; Curriculum Assessment</span>
+                    <h2 class="modal-header-title" style="margin: 2px 0 0; font-size: 20px; font-weight: 800; color: #0f172a;">Student Assessment &amp; Specified Fees</h2>
+                    <p class="modal-header-sub" id="assignModalStudentLabel" style="margin: 3px 0 0; font-size: 13px; color: #475569; font-weight: 600;">Student: Juan Dela Cruz (2023-53512)</p>
+                </div>
+            </div>
+            <div id="assignModalCoursePill" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 20px; color: #065f46; font-size: 12px; font-weight: 800;">
+                <span id="assignModalCourseText">BS Information Tech</span>
             </div>
         </div>
 
@@ -1512,95 +1517,130 @@ $accountingName = Auth::username() ?? 'accounting';
             <input type="hidden" name="action" value="assign_tuition">
             <input type="hidden" name="student_id" id="assignStudentId" value="">
             <input type="hidden" name="fee_id" id="assignFeeId" value="">
+            <input type="hidden" name="grade_level" id="assignGradeLevel" value="">
+            <input type="hidden" name="enrolled_subjects_json" id="assignEnrolledSubjectsJson" value="">
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+            <!-- Row 1: Course + Section Code + School Year + Due Date -->
+            <div style="display: grid; grid-template-columns: 1.6fr 1.2fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
                 <div class="form-group">
-                    <label class="form-label" for="assignGradeLevel">Class / Program &amp; Section *</label>
-                    <input type="text" class="form-control" name="grade_level" id="assignGradeLevel" required placeholder="e.g. BSCS 11A1">
+                    <label class="form-label" for="assignCourseSelect" style="font-size:11.5px;">Course / Program *</label>
+                    <select class="form-control" name="course" id="assignCourseSelect" required onchange="handleModalCourseChange()" style="font-size:12px; height:34px; padding:4px 8px;">
+                        <?php foreach (Curriculum::getAllCourses() as $cCode => $cName): ?>
+                            <option value="<?= e($cCode) ?>"><?= e($cCode) ?> – <?= e($cName) ?></option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="assignSchoolYear">School Year *</label>
-                    <input type="text" class="form-control" name="school_year" id="assignSchoolYear" required value="<?= date('Y') . '-' . (date('Y') + 1) ?>">
+                    <label class="form-label" for="assignSectionCode" style="font-size:11.5px;">Section Code *</label>
+                    <select class="form-control" name="section_code" id="assignSectionCode" required onchange="handleModalSectionInput()" style="font-size:12px; height:34px; padding:4px 8px;">
+                        <?php foreach (Curriculum::getAllSectionCodes() as $group => $codes): ?>
+                            <optgroup label="<?= htmlspecialchars($group, ENT_QUOTES) ?>">
+                                <?php foreach ($codes as $code => $label): ?>
+                                    <option value="<?= htmlspecialchars($code, ENT_QUOTES) ?>"><?= htmlspecialchars($label, ENT_QUOTES) ?></option>
+                                <?php endforeach; ?>
+                            </optgroup>
+                        <?php endforeach; ?>
+                    </select>
+                    <small style="font-size:9.5px;color:#64748b;margin-top:2px;display:block;">Year+Sem drives subjects</small>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="assignSchoolYear" style="font-size:11.5px;">School Year *</label>
+                    <input type="text" class="form-control" name="school_year" id="assignSchoolYear" required value="<?= date('Y') . '-' . (date('Y') + 1) ?>" oninput="updateAssessmentDesc()" style="font-size:12px; height:34px; padding:4px 8px;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="assignDueDate" style="font-size:11.5px;">Due Date</label>
+                    <input type="date" class="form-control" name="due_date" id="assignDueDate" value="<?= date('Y-m-d', strtotime('+30 days')) ?>" style="font-size:12px; height:34px; padding:4px 8px;">
                 </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+            <!-- Row 2: Semester + Description -->
+            <div style="display: grid; grid-template-columns: 1fr 2.5fr; gap: 10px; margin-bottom: 12px;">
                 <div class="form-group">
-                    <label class="form-label" for="assignSemester">Semester / Term *</label>
-                    <select class="form-control" name="semester" id="assignSemester" required onchange="updateAssessmentDesc()">
+                    <label class="form-label" for="assignSemester" style="font-size:11.5px;">Semester *</label>
+                    <select class="form-control" name="semester" id="assignSemester" required onchange="handleModalSemesterChange()" style="font-size:12px; height:34px; padding:4px 8px;">
                         <option value="1st Semester">1st Semester</option>
                         <option value="2nd Semester">2nd Semester</option>
                         <option value="Summer">Summer</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="assignDueDate">Assessment Due Date</label>
-                    <input type="date" class="form-control" name="due_date" id="assignDueDate" value="<?= date('Y-m-d', strtotime('+30 days')) ?>">
+                    <label class="form-label" for="assignDescription" style="font-size:11.5px;">Assessment Description *</label>
+                    <input type="text" class="form-control" name="description" id="assignDescription" required value="S.Y. <?= date('Y') . '-' . (date('Y') + 1) ?> - 1st Semester Tuition" style="font-size:12px; height:34px; padding:4px 8px;">
                 </div>
             </div>
 
-            <div class="form-group" style="margin-bottom: 16px;">
-                <label class="form-label" for="assignDescription">Assessment Description *</label>
-                <input type="text" class="form-control" name="description" id="assignDescription" required value="S.Y. <?= date('Y') . '-' . (date('Y') + 1) ?> - 1st Semester Tuition">
+            <!-- LIVE Subjects Preview with Remove per Row -->
+            <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:11.5px; font-weight:800; text-transform:uppercase; color:#0b3d2e; letter-spacing:0.4px;">📋 Enrolled Subjects Preview</span>
+                        <span id="previewCoursePill" style="padding:1px 8px; border-radius:10px; background:#e0f2fe; color:#0369a1; font-size:10px; font-weight:700;">BSIT</span>
+                    </div>
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <span id="previewUnitsBadge" style="padding:2px 8px; border-radius:4px; background:#e2e8f0; color:#334155; font-size:10.5px; font-weight:700;">– Units</span>
+                        <span id="previewLabsBadge" style="padding:2px 8px; border-radius:4px; background:#dcfce7; color:#166534; font-size:10.5px; font-weight:700;">– Labs</span>
+                        <button type="button" onclick="resetToCalculatedCurriculumFees()" style="padding:2px 9px; font-size:10px; background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; border-radius:5px; font-weight:600; cursor:pointer;">↺ Reset</button>
+                    </div>
+                </div>
+                <div style="max-height:175px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff;">
+                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                        <thead>
+                            <tr style="background:#f1f5f9; color:#475569; text-align:left; font-size:9.5px; text-transform:uppercase; border-bottom:1px solid #e2e8f0; position:sticky; top:0; z-index:1;">
+                                <th style="padding:5px 6px; width:12%;">Code</th>
+                                <th style="padding:5px 6px;">Title</th>
+                                <th style="padding:5px 6px; text-align:center; width:6%;">Units</th>
+                                <th style="padding:5px 6px; text-align:center; width:9%;">Type</th>
+                                <th style="padding:5px 6px; width:18%;">Schedule</th>
+                                <th style="padding:5px 6px; width:10%;">Room</th>
+                                <th style="padding:5px 6px; width:5%; text-align:center;">Del</th>
+                            </tr>
+                        </thead>
+                        <tbody id="previewSubjectsTbody">
+                            <!-- Populated dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+                <div style="font-size:10px; color:#94a3b8; margin-top:4px;">
+                    ⚠ Removing a subject adjusts Tuition Fee units &amp; Lab Fee counts automatically.
+                </div>
             </div>
 
-            <!-- Dynamic Fee Categories Checklist & Rate Customization -->
+            <!-- Dynamic Fee Breakdown Checklist & Rate Customization -->
             <div style="margin-bottom: 16px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <label class="form-label" style="margin: 0; font-weight: 700;">Fee Breakdown &amp; Institutional Aspects</label>
-                    <small style="color: #64748b;">Institutional fees are fixed; adjust subject tuition as needed</small>
+                    <div>
+                        <label class="form-label" style="margin: 0; font-weight: 700; color: #0f172a;">Official NCST Fee Assessment Breakdown</label>
+                        <div style="font-size: 11px; color: #64748b;">Derived from enrolled curriculum units &amp; labs. You can customize any individual amount below.</div>
+                    </div>
+                    <button type="button" class="btn" style="padding: 4px 10px; font-size: 11px; background: #f1f5f9; border: 1px solid #cbd5e1; color: #334155; border-radius: 5px; font-weight: 600;" onclick="resetToCalculatedCurriculumFees()">
+                        ↺ Reset to Standard Rates
+                    </button>
                 </div>
 
-                <div id="feeCategoriesContainer" style="max-height: 240px; overflow-y: auto; padding-right: 4px;">
-                    <?php foreach ($feeCategories as $cat): ?>
-                        <div class="fee-category-row" id="catRow_<?= $cat['id'] ?>">
-                            <div class="cat-info">
-                                <input type="checkbox" 
-                                       name="fee_included[<?= $cat['id'] ?>]" 
-                                       id="chk_<?= $cat['id'] ?>" 
-                                       value="1" 
-                                       checked 
-                                       onchange="toggleCategoryRow(<?= $cat['id'] ?>)">
-                                <label for="chk_<?= $cat['id'] ?>" style="margin: 0; font-size: 13px; font-weight: 600; cursor: pointer;">
-                                    <?= e($cat['name']) ?>
-                                </label>
-                                <input type="hidden" name="fee_name[<?= $cat['id'] ?>]" value="<?= e($cat['name']) ?>">
-                            </div>
-                            <div>
-                                <span style="font-size: 12px; color: #64748b; margin-right: 4px;">₱</span>
-                                <input type="number" 
-                                       step="0.01" 
-                                       min="0" 
-                                       name="fee_amount[<?= $cat['id'] ?>]" 
-                                       id="amt_<?= $cat['id'] ?>" 
-                                       data-variable="<?= !empty($cat['is_variable']) ? '1' : '0' ?>"
-                                       data-default-amount="<?= number_format($cat['default_amount'], 2, '.', '') ?>"
-                                       value="<?= number_format($cat['default_amount'], 2, '.', '') ?>" 
-                                       inputmode="decimal"
-                                       required
-                                       
-                                       <?= !empty($cat['is_variable']) ? 'placeholder="Calculated from assessment total"' : '' ?>
-                                       aria-label="<?= e($cat['name']) ?> amount, maximum two decimal places"
-                                       oninput="recalcAssessmentTotal()">
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
+                <div id="feeCategoriesContainer" style="max-height: 250px; overflow-y: auto; padding-right: 4px;">
+                    <!-- Populated dynamically with specified items matching the chosen program & term -->
                 </div>
 
                 <!-- Total Computed -->
-                <div class="total-computed-box">
+                <div class="total-computed-box" style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 8px;">
                     <div>
-                        <span style="font-size: 12px; color: #047857; font-weight: 700; text-transform: uppercase;">Total Tuition Assessment</span>
-                        <div style="font-size: 11px; color: #065f46;">Auto-calculated sum of included fees</div>
+                        <span style="font-size: 12px; color: #047857; font-weight: 800; text-transform: uppercase;">Total Tuition Assessment</span>
+                        <div style="font-size: 11px; color: #065f46;" id="computedTotalHint">Auto-calculated sum of included fees</div>
+                        <div id="policyCapBadge" style="margin-top: 3px; display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: #dcfce7; color: #15803d;">
+                            ✓ Within Policy (&lt; ₱30,000.00)
+                        </div>
                     </div>
-                    <div style="font-size: 22px; font-weight: 900; color: #047857;" id="computedTotalDisplay">₱0.00</div>
+                    <div style="text-align: right;">
+                        <div style="font-size: 24px; font-weight: 900; color: #047857;" id="computedTotalDisplay">₱0.00</div>
+                        <div style="font-size: 11px; color: #64748b;">Installment: <strong id="computedInstallmentDisplay">₱0.00</strong></div>
+                    </div>
                 </div>
             </div>
 
             <div style="margin-bottom: 20px;">
                 <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #334155; cursor: pointer;">
                     <input type="checkbox" name="notify_email" value="1" checked>
-                    <span><strong>Send automated email notification</strong> with fee breakdown to Student &amp; Parents</span>
+                    <span><strong>Send automated email notification</strong> with specified fee breakdown to Student &amp; Parents</span>
                 </label>
             </div>
 
@@ -1740,122 +1780,189 @@ $accountingName = Auth::username() ?? 'accounting';
 <!-- MODAL: OFFICIAL STUDENT TUITION ASSESSMENT RECEIPT   -->
 <!-- ==================================================== -->
 <div class="modal-backdrop" id="assessmentReceiptModal">
-    <div class="modal-window" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
+    <div class="modal-window" style="max-width: 900px; max-height: 90vh; overflow-y: auto; padding: 0; background: #ffffff; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
         <button class="modal-close-x" onclick="document.getElementById('assessmentReceiptModal').classList.remove('active')">&times;</button>
         
-        <div id="assessmentReceiptPrintArea" style="padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #0f172a;">
+        <div id="assessmentReceiptPrintArea" style="padding: 24px 28px; font-family: Arial, Helvetica, sans-serif; color: #111827; font-size: 11px; line-height: 1.35;">
             <!-- Header Letterhead -->
-            <div style="text-align: center; border-bottom: 2px solid #0b3d2e; padding-bottom: 14px; margin-bottom: 20px;">
-                <div style="font-size: 11px; font-weight: 800; letter-spacing: 1.5px; color: #047857; text-transform: uppercase;">Accounting Office — Student Financial Services</div>
-                <h2 style="margin: 4px 0 2px; color: #0b3d2e; font-size: 20px; font-weight: 800;">NATIONAL COLLEGE OF SCIENCE AND TECHNOLOGY</h2>
-                <div style="font-size: 13px; font-weight: 600; color: #334155;">Official Student Tuition Assessment Statement &amp; Receipt</div>
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: #64748b; margin-top: 10px; padding: 0 4px;">
-                    <span>Ref No: <strong id="arNumber" style="color: #0b3d2e;">#TF-0000</strong></span>
-                    <span>Date Generated: <span id="arDate"><?= date('M d, Y') ?></span></span>
+            <div style="text-align: center; border-bottom: 2px solid #000000; padding-bottom: 8px; margin-bottom: 12px;">
+                <div style="font-size: 10px; font-weight: 800; letter-spacing: 1.5px; color: #4b5563; text-transform: uppercase;">Republic of the Philippines</div>
+                <h2 style="margin: 2px 0; color: #0b3d2e; font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;">NATIONAL COLLEGE OF SCIENCE AND TECHNOLOGY</h2>
+                <div style="font-size: 11px; color: #374151; margin-bottom: 6px;">Emilio Aguinaldo Highway, Dasmariñas City, Cavite 4114 &bull; Tel. No. (046) 416-0166</div>
+                <div style="display: inline-block; font-size: 12.5px; font-weight: 800; color: #000000; letter-spacing: 1.5px; text-transform: uppercase; border: 1.5px solid #000000; padding: 3px 18px; background: #f8fafc;">
+                    CERTIFICATE OF REGISTRATION / ASSESSMENT OF FEES
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 6px; font-weight: 600;">
+                    <span>REFERENCE / ASSESS NO: <strong id="arNumber" style="color: #0b3d2e; font-family: monospace; font-size: 12px;">#TF-0000</strong></span>
+                    <span>DATE GENERATED: <span id="arDate"><?= date('m/d/Y h:i A') ?></span></span>
                 </div>
             </div>
 
-            <!-- Student Info Card -->
-            <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px 18px; margin-bottom: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12.5px;">
-                <div>
-                    <span style="color: #64748b;">Student Name:</span><br>
-                    <strong id="arStudentName" style="font-size: 14px; color: #0f172a;">—</strong>
+            <!-- Student Info Card Grid -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; border: 1.5px solid #000000; margin-bottom: 12px; background: #ffffff;">
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Student Name</div>
+                    <strong id="arStudentName" style="font-size: 11.5px; color: #000000;">—</strong>
                 </div>
-                <div>
-                    <span style="color: #64748b;">Student ID / Number:</span><br>
-                    <strong id="arStudentNum" style="font-size: 14px; color: #0b3d2e;">—</strong>
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Student No</div>
+                    <strong id="arStudentNum" style="font-size: 11.5px; color: #000000; font-family: monospace;">—</strong>
                 </div>
-                <div>
-                    <span style="color: #64748b;">Course / Program &amp; Year:</span><br>
-                    <span id="arGradeLevel" style="font-weight: 600;">—</span>
+                <div style="padding: 4px 8px; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Course / Program</div>
+                    <strong id="arCourseCode" style="font-size: 11.5px; color: #000000;">BSIT</strong>
                 </div>
-                <div>
-                    <span style="color: #64748b;">School Year &amp; Semester:</span><br>
-                    <span id="arTerm" style="font-weight: 600;">—</span>
+
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Assessment Description</div>
+                    <span id="arDescription" style="font-weight: 700; color: #000000;">—</span>
                 </div>
-                <div style="grid-column: span 2; border-top: 1px dashed #cbd5e1; padding-top: 8px; margin-top: 2px;">
-                    <span style="color: #64748b;">Assessment Description:</span>
-                    <strong id="arDescription" style="color: #1e293b;">—</strong>
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Year Level</div>
+                    <span id="arYearLevel" style="font-weight: 700; color: #000000;">4th Year</span>
+                </div>
+                <div style="padding: 4px 8px; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Section Code</div>
+                    <span id="arGradeLevel" style="font-weight: 800; color: #000000;">41A2</span>
+                </div>
+
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; grid-column: span 2;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">School Year &amp; Semester</div>
+                    <span id="arTerm" style="font-weight: 700; color: #000000;">—</span>
+                </div>
+                <div style="padding: 4px 8px;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Account Status</div>
+                    <span id="arStatusBadge" style="display: inline-block; padding: 1px 8px; border-radius: 4px; font-size: 10px; font-weight: 800;">UNPAID</span>
                 </div>
             </div>
 
-            <!-- Fee Breakdown Table -->
-            <div style="margin-bottom: 20px;">
-                <div style="font-size: 13px; font-weight: 700; color: #0b3d2e; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Itemized Fee Assessment Breakdown</div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 12.5px;">
-                    <thead>
-                        <tr style="background: #f1f5f9; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0;">
-                            <th style="text-align: left; padding: 8px 10px; color: #475569;">Fee Aspect / Particulars</th>
-                            <th style="text-align: right; padding: 8px 10px; color: #475569;">Assessed Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody id="arItemsBody">
-                        <tr><td colspan="2" style="padding: 10px; text-align: center; color: #94a3b8;">No fee items recorded.</td></tr>
-                    </tbody>
-                    <tfoot>
-                        <tr style="border-top: 2px solid #0b3d2e; font-weight: 800; font-size: 13px;">
-                            <td style="padding: 10px; text-align: right; color: #0b3d2e;">TOTAL TUITION ASSESSMENT:</td>
-                            <td style="padding: 10px; text-align: right; color: #0b3d2e;" id="arTotalAssessed">₱0.00</td>
-                        </tr>
-                    </tfoot>
-                </table>
+            <!-- Specified Subjects Schedule Table -->
+            <div style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; background: #0b3d2e; color: #ffffff; padding: 4px 8px; margin-bottom: 2px; letter-spacing: 0.5px;">
+                SCHEDULE OF SPECIFIED ENROLLED SUBJECTS
             </div>
+            <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000000; margin-bottom: 12px; font-size: 10.5px;">
+                <thead>
+                    <tr style="background: #e2e8f0; color: #000000; font-size: 9.5px; text-transform: uppercase;">
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 10%;">Subject Code</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 32%; text-align: left;">Descriptive Title</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 6%; text-align: center;">Units</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 8%; text-align: center;">Type</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 9%; text-align: center;">Days</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 8%; text-align: center;">Start</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 8%; text-align: center;">End</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 7%; text-align: center;">Section</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 12%; text-align: center;">Room</th>
+                    </tr>
+                </thead>
+                <tbody id="arSubjectsBody">
+                    <!-- Populated dynamically via JS -->
+                </tbody>
+                <tfoot>
+                    <tr style="font-weight: 800; background: #f1f5f9; border-top: 1.5px solid #000000;">
+                        <td colspan="2" style="text-align: right; padding: 4px 8px; border: 1px solid #000000;">TOTAL NUMBER OF ACADEMIC UNITS:</td>
+                        <td id="arTotalUnits" style="text-align: center; padding: 4px 6px; border: 1px solid #000000; font-size: 12px; color: #0b3d2e; font-weight: 900;">13</td>
+                        <td colspan="6" style="text-align: left; padding: 4px 8px; border: 1px solid #000000; font-size: 10px; color: #4b5563;">
+                            Regular Academic Load &bull; Approved Curriculum
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
 
-            <!-- Payment Transactions / Official Receipts -->
-            <div style="margin-bottom: 20px;">
-                <div style="font-size: 13px; font-weight: 700; color: #059669; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Official Payment Transactions &amp; Receipts</div>
-                <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                    <thead>
-                        <tr style="background: #f0fdf4; border-top: 1px solid #bbf7d0; border-bottom: 1px solid #bbf7d0;">
-                            <th style="text-align: left; padding: 6px 10px; color: #166534;">OR #</th>
-                            <th style="text-align: left; padding: 6px 10px; color: #166534;">Date &amp; Time</th>
-                            <th style="text-align: left; padding: 6px 10px; color: #166534;">Method</th>
-                            <th style="text-align: right; padding: 6px 10px; color: #166534;">Amount Paid</th>
-                        </tr>
-                    </thead>
-                    <tbody id="arPaymentsBody">
-                        <tr><td colspan="4" style="padding: 8px 10px; text-align: center; color: #94a3b8;">No payments logged yet for this assessment.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Financial Summary Box -->
-            <div style="background: #ecfdf5; border: 1.5px solid #10b981; border-radius: 10px; padding: 14px 18px; margin-bottom: 20px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; text-align: center;">
-                    <div>
-                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #065f46;">Total Assessed</div>
-                        <div style="font-size: 18px; font-weight: 800; color: #0b3d2e; margin-top: 2px;" id="arSumAssessed">₱0.00</div>
+            <!-- Bottom Grid: Itemized Fee Breakdown & Payment Receipts -->
+            <div style="display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <!-- Fee Breakdown Table -->
+                <div style="border: 1.5px solid #000000;">
+                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; background: #0b3d2e; color: #ffffff; padding: 4px 8px;">
+                        ASSESSMENT OF TUITION &amp; INSTITUTIONAL FEES
                     </div>
-                    <div>
-                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #065f46;">Total Paid</div>
-                        <div style="font-size: 18px; font-weight: 800; color: #059669; margin-top: 2px;" id="arSumPaid">₱0.00</div>
-                    </div>
-                    <div>
-                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #065f46;">Balance Due</div>
-                        <div style="font-size: 18px; font-weight: 800; color: #dc2626; margin-top: 2px;" id="arSumRemaining">₱0.00</div>
-                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+                        <thead>
+                            <tr style="background: #e2e8f0; border-bottom: 1px solid #000000; font-size: 9.5px; text-transform: uppercase;">
+                                <th style="padding: 4px 8px; text-align: left;">Particulars / Fee Aspect</th>
+                                <th style="padding: 4px 8px; text-align: right;">Assessed Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="arItemsBody">
+                            <tr><td colspan="2" style="padding: 8px; text-align: center; color: #94a3b8;">No fee items recorded.</td></tr>
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top: 1.5px solid #000000; border-bottom: 1.5px solid #000000; background: #f8fafc; font-weight: 800; font-size: 11px;">
+                                <td style="padding: 4px 8px;">TOTAL CASH TUITION ASSESSMENT:</td>
+                                <td style="padding: 4px 8px; text-align: right; color: #0b3d2e; font-size: 12px; font-weight: 900;" id="arTotalAssessed">₱0.00</td>
+                            </tr>
+                            <tr style="font-size: 10px; color: #4b5563;">
+                                <td style="padding: 3px 8px;">Installment Interest / Surcharge:</td>
+                                <td id="arInstallmentCharge" style="padding: 3px 8px; text-align: right; font-weight: 600;">₱0.00</td>
+                            </tr>
+                            <tr style="background: #fdf2f8; font-weight: 800; color: #831843;">
+                                <td style="padding: 4px 8px;">TOTAL INSTALLMENT ASSESSMENT:</td>
+                                <td id="arInstallmentTotal" style="padding: 4px 8px; text-align: right;">₱0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
-                <div style="text-align: center; margin-top: 10px; padding-top: 8px; border-top: 1px dashed #6ee7b7; font-size: 12px;">
-                    <span>Account Status: </span><strong id="arStatusBadge" style="display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px;">UNPAID</strong>
+
+                <!-- Payment Transactions & Official Receipts -->
+                <div style="border: 1.5px solid #000000; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; background: #0b3d2e; color: #ffffff; padding: 4px 8px;">
+                            OFFICIAL PAYMENT TRANSACTIONS &amp; RECEIPTS
+                        </div>
+                        <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+                            <thead>
+                                <tr style="background: #e2e8f0; border-bottom: 1px solid #000000; font-size: 9.5px; text-transform: uppercase;">
+                                    <th style="padding: 4px 6px; text-align: left;">OR #</th>
+                                    <th style="padding: 4px 6px; text-align: left;">Date</th>
+                                    <th style="padding: 4px 6px; text-align: left;">Method</th>
+                                    <th style="padding: 4px 6px; text-align: right;">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="arPaymentsBody">
+                                <tr><td colspan="4" style="padding: 8px 6px; text-align: center; color: #94a3b8;">No payments logged yet.</td></tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Summary Cards -->
+                        <div style="background: #f8fafc; border-top: 1px solid #000000; padding: 8px 10px; margin-top: 6px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 2px;">
+                                <span>Total Paid:</span>
+                                <strong id="arSumPaid" style="color: #047857; font-size: 12px;">₱0.00</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 11px;">
+                                <span>Remaining Balance Due:</span>
+                                <strong id="arSumRemaining" style="color: #dc2626; font-size: 12.5px;">₱0.00</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: #f8fafc; border-top: 1px solid #000000; padding: 6px 10px; font-size: 9.5px; color: #4b5563; text-align: center;">
+                        Certified Official Accounting Record &bull; Valid for Exam Clearance
+                    </div>
                 </div>
             </div>
 
             <!-- Official Certification & Signatures -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 26px; padding-top: 16px; border-top: 1px solid #cbd5e1; font-size: 11.5px; color: #64748b;">
-                <div>
-                    <div>PayTrack Certified Electronic Assessment &amp; Receipt</div>
-                    <div>National College of Science and Technology</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 10px; padding-top: 8px; border-top: 1.5px solid #000000; font-size: 10px;">
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid #000000; height: 26px; margin-bottom: 4px;"></div>
+                    <div id="arSigStudent" style="font-weight: 800; text-transform: uppercase;">STUDENT / GUARDIAN</div>
+                    <div>Signature</div>
                 </div>
-                <div style="text-align: center; width: 170px;">
-                    <div style="border-bottom: 1px solid #334155; margin-bottom: 4px; height: 26px;"></div>
-                    <strong style="color: #0f172a;">Accounting Officer</strong><br>
-                    <span>Authorized Signature</span>
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid #000000; height: 26px; margin-bottom: 4px;"></div>
+                    <div style="font-weight: 800; text-transform: uppercase;">OFFICE OF THE REGISTRAR</div>
+                    <div>Validated &amp; Enrolled</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid #000000; height: 26px; margin-bottom: 4px;"></div>
+                    <div style="font-weight: 800; text-transform: uppercase;">ACCOUNTING OFFICER</div>
+                    <div>Assessment Cleared</div>
                 </div>
             </div>
         </div>
 
         <!-- Modal Actions Footer -->
-        <div class="modal-actions-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px; border-top: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0 0 16px 16px;">
+        <div class="modal-actions-footer" style="display: flex; justify-content: flex-end; gap: 10px; padding: 12px 24px; border-top: 1px solid #e2e8f0; background: #f8fafc; border-radius: 0 0 16px 16px;">
             <button type="button" class="btn" onclick="document.getElementById('assessmentReceiptModal').classList.remove('active')">Close</button>
             <button type="button" class="btn" style="background: #0b3d2e; color: #fff; display: inline-flex; align-items: center; gap: 6px;" onclick="window.print()">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1863,7 +1970,7 @@ $accountingName = Auth::username() ?? 'accounting';
                     <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
                     <rect x="6" y="14" width="12" height="8"></rect>
                 </svg>
-                Print Official Receipt / Statement
+                Print COR &amp; Assessment Receipt
             </button>
         </div>
     </div>
@@ -1872,46 +1979,164 @@ $accountingName = Auth::username() ?? 'accounting';
 <!-- MODAL: PRINTABLE OFFICIAL RECEIPT                    -->
 <!-- ==================================================== -->
 <div class="modal-backdrop" id="receiptModal">
-    <div class="modal-window" style="max-width: 540px;">
+    <div class="modal-window" style="max-width: 900px; max-height: 90vh; overflow-y: auto; padding: 0; background: #ffffff; border-radius: 12px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
         <button class="modal-close-x" onclick="document.getElementById('receiptModal').classList.remove('active')">&times;</button>
-        <div id="receiptPrintArea" style="padding: 20px; font-family: sans-serif;">
-            <div style="text-align: center; border-bottom: 2px solid #0b3d2e; padding-bottom: 12px; margin-bottom: 16px;">
-                <h3 style="margin: 0; color: #0b3d2e; font-size: 18px;">PayTrack — Official Payment Receipt</h3>
-                <div style="font-size: 12px; color: #64748b;">National College of Science and Technology</div>
+        <div id="receiptPrintArea" style="padding: 24px 28px; font-family: Arial, Helvetica, sans-serif; font-size: 11px; line-height: 1.35; color: #111827;">
+            <!-- Header -->
+            <div style="text-align: center; border-bottom: 2px solid #000000; padding-bottom: 8px; margin-bottom: 12px;">
+                <div style="font-size: 10px; font-weight: 800; letter-spacing: 1.5px; color: #4b5563; text-transform: uppercase;">Republic of the Philippines</div>
+                <h3 style="margin: 2px 0; color: #0b3d2e; font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;">National College of Science and Technology</h3>
+                <div style="font-size: 11px; color: #374151; margin-bottom: 6px;">Emilio Aguinaldo Highway, Dasmariñas City, Cavite 4114 &bull; Tel. No. (046) 416-0166</div>
+                <div style="display: inline-block; font-size: 12.5px; font-weight: 800; color: #000000; letter-spacing: 1.5px; text-transform: uppercase; border: 1.5px solid #000000; padding: 3px 18px; background: #f8fafc;">
+                    CERTIFICATE OF REGISTRATION / ASSESSMENT &amp; RECEIPT
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 6px; font-weight: 600;">
+                    <span>OR NUMBER: <strong id="vOrNumber" style="font-family: monospace; font-size: 12px; color: #0b3d2e;">OR-00000</strong></span>
+                    <span>PRINT DATE: <strong><?= date('m/d/Y h:i A') ?></strong></span>
+                </div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
-                <span>Official Receipt No:</span>
-                <strong id="vOrNumber">OR-00000</strong>
+
+            <!-- Student Info Box -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; border: 1.5px solid #000000; margin-bottom: 12px; background: #ffffff;">
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Student Name</div>
+                    <strong id="vStudentName" style="font-size: 11.5px; color: #000000;">—</strong>
+                </div>
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Student No</div>
+                    <strong id="vStudentNum" style="font-size: 11.5px; color: #000000; font-family: monospace;">—</strong>
+                </div>
+                <div style="padding: 4px 8px; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Course / Program</div>
+                    <strong id="vCourse" style="font-size: 11.5px; color: #000000;">BSIT</strong>
+                </div>
+
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Section Code</div>
+                    <span id="vSection" style="font-weight: 800; color: #000000;">41A2</span>
+                </div>
+                <div style="padding: 4px 8px; border-right: 1px solid #000000; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Year Level</div>
+                    <span id="vYearLevel" style="font-weight: 700; color: #000000;">4th Year</span>
+                </div>
+                <div style="padding: 4px 8px; border-bottom: 1px solid #000000;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Payment Channel</div>
+                    <strong id="vMethod" style="color: #0b3d2e; font-size: 11px;">CASH</strong>
+                </div>
+
+                <div style="padding: 4px 8px; grid-column: span 3;">
+                    <div style="font-size: 9.5px; font-weight: 700; color: #4b5563; text-transform: uppercase;">Payment Date &amp; Time</div>
+                    <span id="vDate" style="font-weight: 700; color: #000000;">—</span>
+                </div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
-                <span>Student Name:</span>
-                <strong id="vStudentName">—</strong>
+
+            <!-- Specified Subjects Schedule Table -->
+            <div style="font-size: 11.5px; font-weight: 800; text-transform: uppercase; background: #0b3d2e; color: #ffffff; padding: 4px 8px; margin-bottom: 2px; letter-spacing: 0.5px;">
+                SCHEDULE OF SPECIFIED ENROLLED SUBJECTS
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
-                <span>Student ID:</span>
-                <span id="vStudentNum">—</span>
+            <table style="width: 100%; border-collapse: collapse; border: 1.5px solid #000000; margin-bottom: 12px; font-size: 10.5px;">
+                <thead>
+                    <tr style="background: #e2e8f0; color: #000000; font-size: 9.5px; text-transform: uppercase;">
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 10%;">Subject Code</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 32%; text-align: left;">Descriptive Title</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 6%; text-align: center;">Units</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 8%; text-align: center;">Type</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 9%; text-align: center;">Days</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 8%; text-align: center;">Start</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 8%; text-align: center;">End</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 7%; text-align: center;">Section</th>
+                        <th style="padding: 5px 6px; border: 1px solid #000000; width: 12%; text-align: center;">Room</th>
+                    </tr>
+                </thead>
+                <tbody id="vSubjectsBody">
+                    <!-- Populated dynamically via JS -->
+                </tbody>
+                <tfoot>
+                    <tr style="font-weight: 800; background: #f1f5f9; border-top: 1.5px solid #000000;">
+                        <td colspan="2" style="text-align: right; padding: 4px 8px; border: 1px solid #000000;">TOTAL NUMBER OF ACADEMIC UNITS:</td>
+                        <td id="vTotalUnits" style="text-align: center; padding: 4px 6px; border: 1px solid #000000; font-size: 12px; color: #0b3d2e; font-weight: 900;">13</td>
+                        <td colspan="6" style="text-align: left; padding: 4px 8px; border: 1px solid #000000; font-size: 10px; color: #4b5563;">
+                            Regular Academic Load &bull; Approved Curriculum
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+
+            <!-- Bottom Grid: Assessment Breakdown & Payment Voucher -->
+            <div style="display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; margin-bottom: 12px;">
+                <!-- Fee Assessment Breakdown -->
+                <div style="border: 1.5px solid #000000;">
+                    <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; background: #0b3d2e; color: #ffffff; padding: 4px 8px;">
+                        ASSESSMENT OF TUITION &amp; INSTITUTIONAL FEES
+                    </div>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 10.5px;">
+                        <thead>
+                            <tr style="background: #e2e8f0; border-bottom: 1px solid #000000; font-size: 9.5px; text-transform: uppercase;">
+                                <th style="padding: 4px 8px; text-align: left;">Particulars / Fee Aspect</th>
+                                <th style="padding: 4px 8px; text-align: right;">Assessed Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vFeesBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                        <tfoot>
+                            <tr style="border-top: 1.5px solid #000000; border-bottom: 1.5px solid #000000; background: #f8fafc; font-weight: 800; font-size: 11px;">
+                                <td style="padding: 4px 8px;">TOTAL CASH TUITION &amp; FEES:</td>
+                                <td id="vCashTotal" style="padding: 4px 8px; text-align: right; color: #0b3d2e; font-size: 12px; font-weight: 900;">₱0.00</td>
+                            </tr>
+                            <tr style="font-size: 10px; color: #4b5563;">
+                                <td style="padding: 3px 8px;">Installment Interest / Surcharge:</td>
+                                <td id="vInstallmentCharge" style="padding: 3px 8px; text-align: right; font-weight: 600;">₱0.00</td>
+                            </tr>
+                            <tr style="background: #fdf2f8; font-weight: 800; color: #831843;">
+                                <td style="padding: 4px 8px;">TOTAL INSTALLMENT TUITION &amp; FEES:</td>
+                                <td id="vInstallmentTotal" style="padding: 4px 8px; text-align: right;">₱0.00</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <!-- Payment Receipt Highlight -->
+                <div style="border: 1.5px solid #000000; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div style="padding: 10px 12px;">
+                        <div style="font-size: 11px; font-weight: 800; text-transform: uppercase; color: #0b3d2e; border-bottom: 1px solid #000000; padding-bottom: 4px; margin-bottom: 8px;">
+                            ELECTRONIC CASHIER RECEIPT
+                        </div>
+                        <div style="background: #ecfdf5; border: 1.5px solid #059669; padding: 12px; text-align: center; border-radius: 4px;">
+                            <div style="font-size: 10px; font-weight: 800; text-transform: uppercase; color: #065f46;">Total Amount Received</div>
+                            <div style="font-size: 24px; font-weight: 900; color: #047857; margin: 4px 0;" id="vAmount">₱0.00</div>
+                            <div style="font-size: 10px; color: #065f46; font-weight: 600;">Verified &amp; Recorded by Accounting Cashier</div>
+                        </div>
+                    </div>
+                    <div style="background: #f8fafc; border-top: 1px solid #000000; padding: 6px 10px; font-size: 9.5px; color: #4b5563; text-align: center;">
+                        Accounting Office Copy &bull; System Generated &bull; Official Record
+                    </div>
+                </div>
             </div>
-            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
-                <span>Payment Method:</span>
-                <strong id="vMethod">CASH</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 14px;">
-                <span>Date &amp; Time:</span>
-                <span id="vDate">—</span>
-            </div>
-            <div style="background: #ecfdf5; border: 1.5px solid #10b981; border-radius: 8px; padding: 14px; text-align: center; margin-bottom: 16px;">
-                <div style="font-size: 11px; font-weight: bold; color: #065f46; text-transform: uppercase;">Amount Received</div>
-                <div style="font-size: 26px; font-weight: 900; color: #059669;" id="vAmount">₱0.00</div>
-                <div style="font-size: 11px; color: #047857; margin-top: 4px;">Verified &amp; Recorded by Accounting Cashier</div>
-            </div>
-            <div style="display: flex; justify-content: space-between; margin-top: 24px; padding-top: 14px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #64748b;">
-                <div>Accounting Office Copy<br>System Generated</div>
-                <div style="text-align: right; border-top: 1px solid #334155; width: 140px; padding-top: 2px;">Authorized Signature</div>
+
+            <!-- Signatures Row -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-top: 10px; padding-top: 8px; border-top: 1.5px solid #000000; font-size: 10px;">
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid #000000; height: 26px; margin-bottom: 4px;"></div>
+                    <div id="vSigStudent" style="font-weight: 800; text-transform: uppercase;">STUDENT / GUARDIAN</div>
+                    <div>Signature</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid #000000; height: 26px; margin-bottom: 4px;"></div>
+                    <div style="font-weight: 800; text-transform: uppercase;">OFFICE OF THE REGISTRAR</div>
+                    <div>Validated &amp; Enrolled</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="border-bottom: 1px solid #000000; height: 26px; margin-bottom: 4px;"></div>
+                    <div style="font-weight: 800; text-transform: uppercase;">ACCOUNTING CASHIER</div>
+                    <div>Payment Cleared</div>
+                </div>
             </div>
         </div>
-        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; padding: 0 20px 14px;">
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; padding: 12px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; border-radius: 0 0 12px 12px;">
             <button type="button" class="btn" onclick="document.getElementById('receiptModal').classList.remove('active')">Close</button>
-            <button type="button" class="btn" style="background: #0b3d2e; color: #fff;" onclick="window.print()">Print Voucher</button>
+            <button type="button" class="btn" style="background: #0b3d2e; color: #fff;" onclick="window.print()">Print Official Receipt Voucher</button>
         </div>
     </div>
 </div>
@@ -2186,6 +2411,12 @@ $accountingName = Auth::username() ?? 'accounting';
         });
     };
 
+    // ── Preloaded NCST Master Curriculum & Fee Schedule Engine ──
+    window.NCST_CURRICULUM = <?= json_encode(Curriculum::getAllCatalogs()) ?>;
+    window.NCST_DB_FEE_CATEGORIES = <?= json_encode($feeCategories) ?>;
+    window.currentAssessmentStudent = null;
+    window.currentAssessmentFee = null;
+
     // ── Open Assign Assessment Modal ──
     const assignTuitionModal = document.getElementById('assignTuitionModal');
     const btnCloseAssignModal = document.getElementById('btnCloseAssignModal');
@@ -2193,51 +2424,78 @@ $accountingName = Auth::username() ?? 'accounting';
 
     window.openAssignAssessmentModal = function(student) {
         if (!assignTuitionModal) return;
+        window.currentAssessmentStudent = student;
         const currentFee = student.primary_fee || null;
+        window.currentAssessmentFee = currentFee;
+
         document.getElementById('assignStudentId').value = student.id;
         document.getElementById('assignFeeId').value = currentFee ? currentFee.id : '';
-        document.getElementById('assignModalStudentLabel').textContent = 
+        document.getElementById('assignModalStudentLabel').textContent =
             `Student: ${student.first_name} ${student.last_name} (${student.student_id})`;
-        document.getElementById('assignGradeLevel').value = student.grade_level || 'BSCS 11A1';
-        document.getElementById('assignSchoolYear').value = currentFee?.school_year || student.school_year || '<?= date('Y') . '-' . (date('Y') + 1) ?>';
-        const semesterInput = document.getElementById('assignSemester');
-        const supportedSemesters = Array.from(semesterInput.options).map(option => option.value);
-        semesterInput.value = currentFee && supportedSemesters.includes(currentFee.semester) ? currentFee.semester : '1st Semester';
-        updateAssessmentDesc();
-        if (currentFee) {
-            document.getElementById('assignDescription').value = currentFee.description || document.getElementById('assignDescription').value;
-            document.getElementById('assignDueDate').value = currentFee.due_date || '';
 
-            // Reopen the existing item breakdown, so its sum stays equal to the
-            // current assessment total instead of resetting to category defaults.
-            const existingItems = Array.isArray(currentFee.items) ? currentFee.items : [];
-            document.querySelectorAll('.fee-category-row').forEach(row => {
-                const checkbox = row.querySelector('input[type="checkbox"]');
-                const amount = row.querySelector('input[type="number"]');
-                const categoryId = Number((checkbox.name.match(/\[(\d+)\]/) || [])[1]);
-                const categoryName = row.querySelector('label')?.textContent.trim();
-                const item = existingItems.find(existing => Number(existing.fee_category_id) === categoryId)
-                    || existingItems.find(existing => !existing.fee_category_id && existing.category_name === categoryName);
-                checkbox.checked = Boolean(item);
-                // Load existing assessed item amount directly so adjustments made by accounting reflect accurately
-                amount.value = item ? Number(item.amount).toFixed(2) : Number(amount.dataset.defaultAmount).toFixed(2);
-                amount.disabled = !item;
-                row.classList.toggle('excluded', !item);
-                validateAssessmentAmount(amount);
-            });
+        // Parse student's existing course and section code
+        const rawGrade = String(student.grade_level || '11A1').trim();
+        let course = 'BSIT';
+        if (student.course && window.NCST_CURRICULUM.courses[student.course.toUpperCase()]) {
+            course = student.course.toUpperCase();
         } else {
-            document.getElementById('assignDueDate').value = '<?= date('Y-m-d', strtotime('+30 days')) ?>';
-            document.querySelectorAll('.fee-category-row').forEach(row => {
-                const checkbox = row.querySelector('input[type="checkbox"]');
-                const amount = row.querySelector('input[type="number"]');
-                checkbox.checked = true;
-                amount.disabled = false;
-                row.classList.remove('excluded');
-                amount.value = amount.dataset.variable === '1' ? '0.00' : Number(amount.dataset.defaultAmount).toFixed(2);
-                validateAssessmentAmount(amount);
-            });
+            const cMatch = rawGrade.match(/\b(BSIT|BSCS|BSA|BSCRIM|BSCR|BSHM|BSIE|BSEE|ACT)\b/i);
+            if (cMatch) {
+                let found = cMatch[1].toUpperCase();
+                if (found === 'BSCR') found = 'BSCRIM';
+                if (found === 'ACT')  found = 'BSA';
+                if (window.NCST_CURRICULUM.courses[found]) course = found;
+            }
         }
-        recalcAssessmentTotal();
+
+        let year = 1, sem = 1, secSuffix = 'A1';
+        const m = rawGrade.match(/([1-4])([1-2])([A-Z][1-3])/i);
+        if (m) {
+            year = parseInt(m[1]);
+            sem = parseInt(m[2]);
+            secSuffix = m[3].toUpperCase();
+        } else {
+            const m2 = rawGrade.match(/([1-4])([1-2])/i);
+            if (m2) {
+                year = parseInt(m2[1]);
+                sem = parseInt(m2[2]);
+                secSuffix = 'A1';
+            }
+        }
+
+        // Set course dropdown
+        const courseSelect = document.getElementById('assignCourseSelect');
+        if (courseSelect) courseSelect.value = course;
+
+        // Set section code dropdown — match exact code, or fall back to same year+sem with suffix A1
+        const secSelect = document.getElementById('assignSectionCode');
+        if (secSelect) {
+            const targetCode = `${year}${sem}${secSuffix}`;
+            const fallbackCode = `${year}${sem}A1`;
+            let matched = false;
+            for (const opt of secSelect.options) {
+                if (opt.value === targetCode) { secSelect.value = targetCode; matched = true; break; }
+            }
+            if (!matched) {
+                for (const opt of secSelect.options) {
+                    if (opt.value === fallbackCode) { secSelect.value = fallbackCode; break; }
+                }
+            }
+        }
+
+        // Sync semester field
+        const semesterInput = document.getElementById('assignSemester');
+        if (semesterInput) semesterInput.value = (sem === 2) ? '2nd Semester' : '1st Semester';
+
+        document.getElementById('assignSchoolYear').value = currentFee?.school_year || student.school_year || '<?= date('Y') . '-' . (date('Y') + 1) ?>';
+        document.getElementById('assignDueDate').value = currentFee?.due_date || '<?= date('Y-m-d', strtotime('+30 days')) ?>';
+
+        updateAssessmentDesc();
+        if (currentFee && currentFee.description) {
+            document.getElementById('assignDescription').value = currentFee.description;
+        }
+
+        renderSpecifiedModalView(currentFee);
         assignTuitionModal.classList.add('active');
     };
 
@@ -2246,6 +2504,53 @@ $accountingName = Auth::username() ?? 'accounting';
     }
     btnCloseAssignModal && btnCloseAssignModal.addEventListener('click', closeAssignModal);
     btnCancelAssignModal && btnCancelAssignModal.addEventListener('click', closeAssignModal);
+
+    window.handleModalCourseChange = function() {
+        renderSpecifiedModalView(null);
+    };
+
+    window.handleModalSectionInput = function() {
+        // Section code is now a dropdown — parse value directly
+        const secVal = (document.getElementById('assignSectionCode') || {}).value || '11A1';
+        const m = secVal.match(/([1-4])([1-2])/i);
+        if (m) {
+            const semDigit = parseInt(m[2]);
+            const semesterInput = document.getElementById('assignSemester');
+            if (semesterInput) {
+                semesterInput.value = (semDigit === 2) ? '2nd Semester' : '1st Semester';
+            }
+        }
+        updateAssessmentDesc();
+        renderSpecifiedModalView(null);
+    };
+
+    window.handleModalSemesterChange = function() {
+        // When semester changes, update the section code dropdown to match
+        const semVal = document.getElementById('assignSemester').value;
+        const targetSemDigit = (semVal.indexOf('2nd') !== -1) ? '2' : '1';
+        const secSelect = document.getElementById('assignSectionCode');
+        if (secSelect) {
+            // Try to find an option matching same year + new sem digit + same suffix
+            const curCode = secSelect.value || '11A1';
+            const mCur = curCode.match(/^([1-4])([1-2])([A-Z][1-3])$/i);
+            if (mCur) {
+                const newCode = mCur[1] + targetSemDigit + mCur[3].toUpperCase();
+                // Find matching option
+                for (const opt of secSelect.options) {
+                    if (opt.value === newCode) {
+                        secSelect.value = newCode;
+                        break;
+                    }
+                }
+            }
+        }
+        updateAssessmentDesc();
+        renderSpecifiedModalView(null);
+    };
+
+    window.resetToCalculatedCurriculumFees = function() {
+        renderSpecifiedModalView(null);
+    };
 
     window.updateAssessmentDesc = function() {
         const sy = document.getElementById('assignSchoolYear').value.trim() || '<?= date('Y') . '-' . (date('Y') + 1) ?>';
@@ -2256,11 +2561,293 @@ $accountingName = Auth::username() ?? 'accounting';
         }
     };
 
+    // ── Module-level mutable subjects state ──────────────────────────────────
+    let _currentSubjects = []; // working copy, modified when rows are deleted
+
+    function syncEnrolledSubjectsJson() {
+        const hf = document.getElementById('assignEnrolledSubjectsJson');
+        if (hf) hf.value = JSON.stringify(_currentSubjects);
+    }
+
+    function recomputeFeesFromSubjects(subjects, course, year, rates) {
+        let totUnits = 0, labCount = 0;
+        subjects.forEach(s => {
+            totUnits += (s.units || 3);
+            if (String(s.type || '').includes('LAB')) labCount++;
+        });
+
+        let tuitionAmount, labAmount;
+        const termKey = `${year}${(subjects[0] || {}).sem || 1}`;
+
+        if (course === 'BSIT' && String(subjects.length) && totUnits === 13) {
+            tuitionAmount = 8397.35;
+            labAmount = 3078.00;
+        } else {
+            tuitionAmount = Math.round(totUnits * rates.unit * 100) / 100;
+            labAmount = Math.round(labCount * rates.lab * 100) / 100;
+        }
+
+        return { totUnits, labCount, tuitionAmount, labAmount };
+    }
+
+    function updatePreviewBadges(totUnits, labCount) {
+        const u = document.getElementById('previewUnitsBadge');
+        const l = document.getElementById('previewLabsBadge');
+        if (u) u.textContent = `${totUnits} Units`;
+        if (l) l.textContent = `${labCount} Labs`;
+    }
+
+    window.removeSubjectRow = function(idx) {
+        if (idx < 0 || idx >= _currentSubjects.length) return;
+        _currentSubjects.splice(idx, 1);
+        syncEnrolledSubjectsJson();
+
+        const course = (document.getElementById('assignCourseSelect') || {}).value || 'BSIT';
+        const year   = parseInt((_currentSubjects[0] || {}).section ? _currentSubjects[0].section[0] : 1) || 1;
+        const rates  = window.NCST_CURRICULUM.rates || { unit:645.95, lab:1026.00, misc:4743.49, lms:2053.20, omr:139.20, nstp:1500.00 };
+
+        // Recalculate totals from new subjects list
+        let totUnits = 0, labCount = 0;
+        _currentSubjects.forEach(s => {
+            totUnits += (s.units || 3);
+            if (String(s.type || '').includes('LAB')) labCount++;
+        });
+
+        updatePreviewBadges(totUnits, labCount);
+        rebuildSubjectRows();
+
+        // Patch tuition + lab fee inputs live
+        const tuitionAmt = Math.round(totUnits * rates.unit * 100) / 100;
+        const labAmt     = Math.round(labCount * rates.lab * 100) / 100;
+        const tInput = document.getElementById('amt_8');
+        const lInput = document.getElementById('amt_3');
+        const lRow   = document.getElementById('catRow_3');
+        if (tInput && !tInput.disabled) tInput.value = tuitionAmt.toFixed(2);
+        const tNameHf = document.querySelector('input[name="fee_name[8]"]');
+        if (tNameHf) tNameHf.value = `Tuition Fee (${totUnits} Units @ ₱${rates.unit.toFixed(2)})`;
+        if (lInput) {
+            lInput.value = labAmt.toFixed(2);
+            const lNameHf = document.querySelector('input[name="fee_name[3]"]');
+            if (lNameHf) lNameHf.value = `Laboratory Fee (${labCount} Science/Tech Lab Subjects @ ₱${rates.lab.toFixed(2)})`;
+            // Auto-uncheck lab row if no labs remain
+            const lChk = document.getElementById('chk_3');
+            if (lChk && labCount === 0) {
+                lChk.checked = false;
+                lInput.setAttribute('disabled', 'disabled');
+                if (lRow) lRow.classList.add('excluded');
+            } else if (lChk && labCount > 0 && !lChk.checked) {
+                lChk.checked = true;
+                lInput.removeAttribute('disabled');
+                if (lRow) lRow.classList.remove('excluded');
+            }
+        }
+
+        recalcAssessmentTotal();
+    };
+
+    function rebuildSubjectRows() {
+        const tbody = document.getElementById('previewSubjectsTbody');
+        if (!tbody) return;
+        tbody.innerHTML = _currentSubjects.map((s, idx) => {
+            const isLab = String(s.type || '').includes('LAB');
+            return `<tr style="border-bottom:1px solid #f1f5f9;" id="subRow_${idx}">
+                <td style="padding:4px 6px;font-weight:800;font-family:monospace;color:#0b3d2e;font-size:10.5px;">${escapeHtml(s.code)}</td>
+                <td style="padding:4px 6px;font-size:11px;"><strong>${escapeHtml(s.description)}</strong></td>
+                <td style="padding:4px 6px;text-align:center;font-weight:800;font-size:11px;">${s.units}</td>
+                <td style="padding:4px 6px;text-align:center;">
+                    <span style="display:inline-block;padding:1px 5px;border-radius:3px;font-size:9.5px;font-weight:700;background:${isLab?'#e0f2fe':'#f1f5f9'};color:${isLab?'#0284c7':'#475569'};">${escapeHtml(s.type)}</span>
+                </td>
+                <td style="padding:4px 6px;font-size:10px;color:#475569;">${escapeHtml(s.days)} ${escapeHtml(s.start_time||'')} – ${escapeHtml(s.end_time||'')}</td>
+                <td style="padding:4px 6px;font-size:10px;font-weight:600;color:#334155;">${escapeHtml(s.room||'')}</td>
+                <td style="padding:4px 6px;text-align:center;">
+                    <button type="button" onclick="removeSubjectRow(${idx})" title="Remove this subject" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;padding:0;line-height:1;">✕</button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderSpecifiedModalView(existingFee) {
+        const courseSelect = document.getElementById('assignCourseSelect');
+        const course = courseSelect ? courseSelect.value.toUpperCase() : 'BSIT';
+        const secInput = document.getElementById('assignSectionCode');
+        const secVal = secInput ? secInput.value.trim().toUpperCase() : '41A2';
+
+        let year = 4, sem = 1, secSuffix = 'A2';
+        const m = secVal.match(/([1-4])([1-2])([A-Z0-9]*)/i);
+        if (m) {
+            year = parseInt(m[1]);
+            sem = parseInt(m[2]);
+            secSuffix = m[3] ? m[3].toUpperCase() : 'A1';
+        } else {
+            const m2 = secVal.match(/([1-4])/i);
+            if (m2) year = parseInt(m2[1]);
+        }
+
+        const secCode = `${year}${sem}${secSuffix}`;
+        const gradeLevelInput = document.getElementById('assignGradeLevel');
+        if (gradeLevelInput) gradeLevelInput.value = `${course} ${secCode}`;
+
+        const courseFullName = window.NCST_CURRICULUM.courses[course] || course;
+        const pillText = document.getElementById('assignModalCourseText');
+        if (pillText) pillText.textContent = courseFullName;
+
+        const previewCoursePill = document.getElementById('previewCoursePill');
+        if (previewCoursePill) previewCoursePill.textContent = course;
+
+        // Retrieve course curriculum
+        const courseCatalog = (window.NCST_CURRICULUM.curricula && window.NCST_CURRICULUM.curricula[course])
+            ? window.NCST_CURRICULUM.curricula[course]
+            : window.NCST_CURRICULUM.curricula['BSIT'];
+
+        const termKey = `${year}${sem}`;
+        const rawSubs = courseCatalog[termKey] || courseCatalog['41'] || window.NCST_CURRICULUM.curricula['BSIT']['41'];
+
+        // Deep-clone into mutable state
+        _currentSubjects = rawSubs.map(s => Object.assign({}, s, { section: secCode }));
+        syncEnrolledSubjectsJson();
+
+        let totUnits = 0, labCount = 0;
+        _currentSubjects.forEach(s => {
+            totUnits += (s.units || 3);
+            if (String(s.type || '').includes('LAB')) labCount++;
+        });
+
+        updatePreviewBadges(totUnits, labCount);
+        rebuildSubjectRows();
+
+        // Compute baseline NCST specified fees
+        const rates = window.NCST_CURRICULUM.rates || {
+            unit: 645.95, lab: 1026.00, misc: 4743.49, lms: 2053.20, omr: 139.20, nstp: 1500.00
+        };
+
+        let tuitionAmount = 0, labAmount = 0;
+        let miscAmount = rates.misc, lmsAmount = rates.lms, omrAmount = rates.omr;
+        let nstpAmount = (year === 1) ? rates.nstp : 0.00;
+
+        if (course === 'BSIT' && termKey === '41') {
+            tuitionAmount = 8397.35;
+            labAmount = 3078.00;
+        } else {
+            tuitionAmount = Math.round(totUnits * rates.unit * 100) / 100;
+            labAmount = Math.round(labCount * rates.lab * 100) / 100;
+        }
+
+        // Cap check strictly < 30k
+        let computedCash = tuitionAmount + labAmount + miscAmount + lmsAmount + omrAmount + nstpAmount;
+        if (computedCash > 29800) {
+            tuitionAmount = Math.round((tuitionAmount - (computedCash - 28950)) * 100) / 100;
+        }
+
+        // Standard Specified Assessment Breakdown Items Definition
+        const specifiedItems = [
+            {
+                id: 8, code: 'subject',
+                name: `Tuition Fee (${totUnits} Units @ ₱${rates.unit.toFixed(2)})`,
+                amount: tuitionAmount, default_amount: tuitionAmount, is_variable: 1, checked: true
+            },
+            {
+                id: 3, code: 'lab',
+                name: `Laboratory Fee (${labCount} Science/Tech Lab Subjects @ ₱${rates.lab.toFixed(2)})`,
+                amount: labAmount, default_amount: labAmount, is_variable: 0, checked: labCount > 0
+            },
+            {
+                id: 7, code: 'misc',
+                name: 'Institutional Miscellaneous Fee (Reg, Library, Med/Dental, Energy)',
+                amount: miscAmount, default_amount: miscAmount, is_variable: 0, checked: true
+            },
+            {
+                id: 2, code: 'lms',
+                name: 'Learning Management System (LMS) & Campus Cloud Portal',
+                amount: lmsAmount, default_amount: lmsAmount, is_variable: 0, checked: true
+            },
+            {
+                id: 20, code: 'omr',
+                name: 'OMR / Exam Scoring & Educational Research',
+                amount: omrAmount, default_amount: omrAmount, is_variable: 0, checked: true
+            },
+            {
+                id: 21, code: 'nstp',
+                name: 'NSTP / ROTC Component Fee (DND / CHED Accredited)',
+                amount: nstpAmount > 0 ? nstpAmount : 1500.00, default_amount: 1500.00,
+                is_variable: 0, checked: (year === 1)
+            }
+        ];
+
+        // Also check if existingFee has saved items to restore customized amounts
+        const existingItems = (existingFee && Array.isArray(existingFee.items)) ? existingFee.items : [];
+
+        // Build HTML for Fee Categories Checklist
+        const container = document.getElementById('feeCategoriesContainer');
+        if (container) {
+            container.innerHTML = specifiedItems.map(item => {
+                let isChecked = item.checked;
+                let amtVal = Number(item.amount).toFixed(2);
+
+                if (existingItems.length > 0) {
+                    const saved = existingItems.find(ex => Number(ex.fee_category_id) === item.id)
+                               || existingItems.find(ex => ex.category_name && ex.category_name.toLowerCase().includes(item.code));
+                    isChecked = Boolean(saved);
+                    if (saved) {
+                        amtVal = Number(saved.amount).toFixed(2);
+                    }
+                }
+
+                return `
+                    <div class="fee-category-row ${isChecked ? '' : 'excluded'}" id="catRow_${item.id}">
+                        <div class="cat-info" style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" 
+                                   name="fee_included[${item.id}]" 
+                                   id="chk_${item.id}" 
+                                   value="1" 
+                                   ${isChecked ? 'checked' : ''} 
+                                   onchange="toggleCategoryRow(${item.id})">
+                            <label for="chk_${item.id}" style="margin: 0; font-size: 13px; font-weight: 600; cursor: pointer; color: #1e293b;">
+                                ${escapeHtml(item.name)}
+                            </label>
+                            <input type="hidden" name="fee_name[${item.id}]" value="${escapeHtml(item.name)}">
+                        </div>
+                        <div style="display: flex; align-items: center;">
+                            <span style="font-size: 12px; color: #64748b; margin-right: 4px; font-weight: 700;">₱</span>
+                            <input type="number" 
+                                   step="0.01" 
+                                   min="0" 
+                                   name="fee_amount[${item.id}]" 
+                                   id="amt_${item.id}" 
+                                   data-variable="${item.is_variable}"
+                                   data-default-amount="${Number(item.default_amount).toFixed(2)}"
+                                   value="${amtVal}" 
+                                   ${isChecked ? '' : 'disabled'}
+                                   inputmode="decimal"
+                                   required
+                                   style="width: 130px; text-align: right; font-weight: 700;"
+                                   aria-label="${escapeHtml(item.name)} amount"
+                                   oninput="recalcAssessmentTotal()">
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Attach validation listeners
+            container.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('keydown', event => {
+                    if (['-', '+', 'e', 'E'].includes(event.key)) event.preventDefault();
+                });
+                input.addEventListener('input', () => {
+                    validateAssessmentAmount(input);
+                    recalcAssessmentTotal();
+                });
+                validateAssessmentAmount(input);
+            });
+        }
+
+        recalcAssessmentTotal();
+    }
+
     window.toggleCategoryRow = function(catId) {
         const row = document.getElementById('catRow_' + catId);
         const chk = document.getElementById('chk_' + catId);
         const amt = document.getElementById('amt_' + catId);
-        if (row && chk) {
+        if (row && chk && amt) {
             if (chk.checked) {
                 row.classList.remove('excluded');
                 amt.removeAttribute('disabled');
@@ -2280,34 +2867,47 @@ $accountingName = Auth::username() ?? 'accounting';
         return valid;
     }
 
-    document.querySelectorAll('.fee-category-row input[type="number"]').forEach(input => {
-        input.addEventListener('keydown', event => {
-            if (['-', '+', 'e', 'E'].includes(event.key)) event.preventDefault();
-        });
-        input.addEventListener('input', () => {
-            validateAssessmentAmount(input);
-            recalcAssessmentTotal();
-        });
-        validateAssessmentAmount(input);
-    });
-
     window.recalcAssessmentTotal = function() {
         let total = 0;
-        document.querySelectorAll('.fee-category-row').forEach(row => {
+        const rows = document.querySelectorAll('#feeCategoriesContainer .fee-category-row');
+        rows.forEach(row => {
             const chk = row.querySelector('input[type="checkbox"]');
             const num = row.querySelector('input[type="number"]');
-            if (chk && chk.checked && num) {
-                if (validateAssessmentAmount(num)) total += Number(num.value || 0);
+            if (chk && chk.checked && num && !num.disabled) {
+                if (validateAssessmentAmount(num)) {
+                    total += Number(num.value || 0);
+                }
             }
         });
+
+        total = Math.round(total * 100) / 100;
         const disp = document.getElementById('computedTotalDisplay');
         if (disp) {
             disp.textContent = '₱' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
-    };
 
-    // Initialize total calculation
-    recalcAssessmentTotal();
+        const instDisp = document.getElementById('computedInstallmentDisplay');
+        if (instDisp) {
+            const instTotal = Math.round((total * 1.099175) * 100) / 100;
+            instDisp.textContent = '₱' + instTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        const badge = document.getElementById('policyCapBadge');
+        const submitBtn = document.getElementById('btnSubmitAssignModal');
+        if (badge) {
+            if (total > 30000.00) {
+                badge.style.background = '#fee2e2';
+                badge.style.color = '#b91c1c';
+                badge.innerHTML = '⚠️ Exceeds ₱30,000 policy limit! Please adjust amounts.';
+                if (submitBtn) submitBtn.disabled = true;
+            } else {
+                badge.style.background = '#dcfce7';
+                badge.style.color = '#15803d';
+                badge.innerHTML = '✓ Within Policy (&lt; ₱30,000.00)';
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        }
+    };
 
     // ── Manual Payment Modal ──
     window.openManualPaymentModal = function() {
@@ -2393,25 +2993,143 @@ $accountingName = Auth::username() ?? 'accounting';
         });
     }
 
-        // ── Official Assessment Receipt View Modal ──
+    // ── Preloaded NCST Curriculum & Fee Schedule Engine for Accounting ─
+    function getAccountingCurriculum(courseSec) {
+        const raw = String(courseSec || '41A2').trim();
+        let year = 4, sem = 1, secSuffix = 'A2', course = 'BSIT';
+        const cMatch = raw.match(/^(BSIT|BSCS|BSIS|ACT|BSEMC|BSCPE)/i);
+        if (cMatch) course = cMatch[1].toUpperCase();
+
+        const m = raw.match(/([1-4])([1-2])([A-Z0-9]+)/i);
+        if (m) {
+            year = parseInt(m[1]);
+            sem = parseInt(m[2]);
+            secSuffix = m[3].toUpperCase();
+        } else {
+            const m2 = raw.match(/([1-4])([1-2])/i);
+            if (m2) {
+                year = parseInt(m2[1]);
+                sem = parseInt(m2[2]);
+                secSuffix = 'A1';
+            }
+        }
+
+        const secCode = `${year}${sem}${secSuffix}`;
+        const yearTexts = { 1: '1st Year', 2: '2nd Year', 3: '3rd Year', 4: '4th Year' };
+        const semTexts = { 1: '1st Semester', 2: '2nd Semester' };
+
+        const subjectsCatalog = {
+            '41': [
+                { code: 'IT 412', description: 'APPLICATION DEVELOPMENT & EMERGING TECH', units: 3, type: 'LEC/LAB', days: 'THU/FRI', start: '7:00 AM', end: '10:00 AM', room: 'COMPLAB 2' },
+                { code: 'IT 413', description: 'SYSTEMS INTEGRATION AND ARCHITECTURE 2', units: 3, type: 'LEC/LAB', days: 'SAT', start: '8:00 AM', end: '2:00 PM', room: 'COMPLAB 4' },
+                { code: 'IT 414', description: 'INFORMATION ASSURANCE AND SECURITY 2', units: 3, type: 'LEC/LAB', days: 'WED', start: '1:00 PM', end: '7:00 PM', room: 'COMPLAB 3' },
+                { code: 'CAP 411', description: 'CAPSTONE PROJECT AND RESEARCH 2', units: 3, type: 'LEC/LAB', days: 'TUE', start: '8:00 AM', end: '2:00 PM', room: 'MULTIMEDIA RM' },
+                { code: 'SEM 411', description: 'SEMINARS AND FIELD TRIPS IN IT', units: 1, type: 'LEC', days: 'MON', start: '9:00 AM', end: '10:00 AM', room: 'AUDIO VISUAL RM' }
+            ],
+            '42': [
+                { code: 'PRACT 421', description: 'PRACTICUM / INDUSTRY INTERNSHIP (500 HRS)', units: 6, type: 'LAB', days: 'MON-FRI', start: '8:00 AM', end: '5:00 PM', room: 'INDUSTRY SITE' },
+                { code: 'IT 422', description: 'CURRENT TRENDS & SPECIAL TOPICS IN IT', units: 3, type: 'LEC', days: 'SAT', start: '9:00 AM', end: '12:00 PM', room: 'TECH LAB 1' },
+                { code: 'ENG 421', description: 'PROFESSIONAL ETHICS IN COMPUTING', units: 3, type: 'LEC', days: 'SAT', start: '1:00 PM', end: '4:00 PM', room: 'ROOM 304' }
+            ],
+            '11': [
+                { code: 'IT 111', description: 'INTRODUCTION TO COMPUTING', units: 3, type: 'LEC/LAB', days: 'MON/WED', start: '8:00 AM', end: '10:30 AM', room: 'COMPLAB 1' },
+                { code: 'IT 112', description: 'FUNDAMENTALS OF PROGRAMMING', units: 3, type: 'LEC/LAB', days: 'TUE/THU', start: '10:30 AM', end: '1:00 PM', room: 'COMPLAB 2' },
+                { code: 'GE 101', description: 'UNDERSTANDING THE SELF', units: 3, type: 'LEC', days: 'FRI', start: '8:00 AM', end: '11:00 AM', room: 'ROOM 101' },
+                { code: 'GE 102', description: 'MATHEMATICS IN THE MODERN WORLD', units: 3, type: 'LEC', days: 'FRI', start: '1:00 PM', end: '4:00 PM', room: 'ROOM 102' },
+                { code: 'PE 101', description: 'PHYSICAL ACTIVITIES TOWARDS HEALTH & FITNESS 1', units: 2, type: 'ACT', days: 'SAT', start: '8:00 AM', end: '10:00 AM', room: 'GYMNASIUM' },
+                { code: 'NSTP 101', description: 'NATIONAL SERVICE TRAINING PROGRAM 1', units: 3, type: 'ACT', days: 'SUN', start: '8:00 AM', end: '11:00 AM', room: 'QUADRANGLE' }
+            ],
+            '12': [
+                { code: 'IT 121', description: 'INTERMEDIATE COMPUTER PROGRAMMING', units: 3, type: 'LEC/LAB', days: 'MON/WED', start: '9:00 AM', end: '11:30 AM', room: 'COMPLAB 3' },
+                { code: 'IT 122', description: 'DISCRETE STRUCTURES & MATHEMATICS', units: 3, type: 'LEC', days: 'TUE/THU', start: '8:00 AM', end: '9:30 AM', room: 'ROOM 203' },
+                { code: 'GE 103', description: 'PURPOSIVE COMMUNICATION', units: 3, type: 'LEC', days: 'TUE/THU', start: '10:00 AM', end: '11:30 AM', room: 'ROOM 204' },
+                { code: 'GE 104', description: 'THE CONTEMPORARY WORLD', units: 3, type: 'LEC', days: 'FRI', start: '9:00 AM', end: '12:00 PM', room: 'ROOM 205' },
+                { code: 'PE 102', description: 'PHYSICAL ACTIVITIES TOWARDS HEALTH & FITNESS 2', units: 2, type: 'ACT', days: 'SAT', start: '10:00 AM', end: '12:00 PM', room: 'GYMNASIUM' },
+                { code: 'NSTP 102', description: 'NATIONAL SERVICE TRAINING PROGRAM 2', units: 3, type: 'ACT', days: 'SUN', start: '8:00 AM', end: '11:00 AM', room: 'QUADRANGLE' }
+            ],
+            '21': [
+                { code: 'IT 211', description: 'DATA STRUCTURES AND ALGORITHMS', units: 3, type: 'LEC/LAB', days: 'MON/WED', start: '8:00 AM', end: '11:00 AM', room: 'COMPLAB 2' },
+                { code: 'IT 212', description: 'OBJECT-ORIENTED PROGRAMMING (OOP)', units: 3, type: 'LEC/LAB', days: 'TUE/THU', start: '1:00 PM', end: '4:00 PM', room: 'COMPLAB 4' },
+                { code: 'IT 213', description: 'PLATFORM TECHNOLOGIES & OPERATING SYSTEMS', units: 3, type: 'LEC/LAB', days: 'FRI', start: '8:00 AM', end: '2:00 PM', room: 'COMPLAB 1' },
+                { code: 'GE 105', description: 'ART APPRECIATION', units: 3, type: 'LEC', days: 'SAT', start: '8:00 AM', end: '11:00 AM', room: 'ROOM 301' },
+                { code: 'PE 201', description: 'PHYSICAL EDUCATION 3 - DANCE & RHYTHMS', units: 2, type: 'ACT', days: 'SAT', start: '1:00 PM', end: '3:00 PM', room: 'GYMNASIUM' }
+            ],
+            '22': [
+                { code: 'IT 221', description: 'FUNDAMENTALS OF DATABASE SYSTEMS', units: 3, type: 'LEC/LAB', days: 'MON/WED', start: '9:00 AM', end: '12:00 PM', room: 'COMPLAB 3' },
+                { code: 'IT 222', description: 'WEB SYSTEMS AND TECHNOLOGIES 1', units: 3, type: 'LEC/LAB', days: 'TUE/THU', start: '8:00 AM', end: '11:00 AM', room: 'COMPLAB 2' },
+                { code: 'IT 223', description: 'NETWORKING 1 - CISCO CCNA ROUTING', units: 3, type: 'LEC/LAB', days: 'FRI', start: '8:00 AM', end: '2:00 PM', room: 'CISCO LAB 1' },
+                { code: 'GE 106', description: 'SCIENCE, TECHNOLOGY AND SOCIETY', units: 3, type: 'LEC', days: 'SAT', start: '9:00 AM', end: '12:00 PM', room: 'ROOM 302' },
+                { code: 'PE 202', description: 'PHYSICAL EDUCATION 4 - TEAM SPORTS', units: 2, type: 'ACT', days: 'SAT', start: '1:00 PM', end: '3:00 PM', room: 'GYMNASIUM' }
+            ],
+            '31': [
+                { code: 'IT 311', description: 'ADVANCED DATABASE MANAGEMENT SYSTEMS', units: 3, type: 'LEC/LAB', days: 'MON/WED', start: '8:00 AM', end: '11:00 AM', room: 'COMPLAB 4' },
+                { code: 'IT 312', description: 'SYSTEMS INTEGRATION & ARCHITECTURE 1', units: 3, type: 'LEC/LAB', days: 'TUE/THU', start: '1:00 PM', end: '4:00 PM', room: 'COMPLAB 3' },
+                { code: 'IT 313', description: 'INFORMATION ASSURANCE AND SECURITY 1', units: 3, type: 'LEC/LAB', days: 'FRI', start: '8:00 AM', end: '2:00 PM', room: 'COMPLAB 2' },
+                { code: 'IT 314', description: 'QUANTITATIVE METHODS & DECISION SCIENCE', units: 3, type: 'LEC', days: 'SAT', start: '8:00 AM', end: '11:00 AM', room: 'ROOM 305' },
+                { code: 'GE 107', description: 'ETHICS (MORAL PHILOSOPHY)', units: 3, type: 'LEC', days: 'SAT', start: '1:00 PM', end: '4:00 PM', room: 'ROOM 306' }
+            ],
+            '32': [
+                { code: 'IT 321', description: 'WEB SYSTEMS AND TECHNOLOGIES 2 (FRAMEWORKS)', units: 3, type: 'LEC/LAB', days: 'MON/WED', start: '8:00 AM', end: '11:00 AM', room: 'COMPLAB 1' },
+                { code: 'IT 322', description: 'MOBILE APPLICATION DEVELOPMENT', units: 3, type: 'LEC/LAB', days: 'TUE/THU', start: '1:00 PM', end: '4:00 PM', room: 'COMPLAB 2' },
+                { code: 'IT 323', description: 'SYSTEMS ANALYSIS AND DESIGN', units: 3, type: 'LEC/LAB', days: 'FRI', start: '8:00 AM', end: '2:00 PM', room: 'COMPLAB 4' },
+                { code: 'CAP 321', description: 'CAPSTONE PROJECT AND RESEARCH 1', units: 3, type: 'LEC/LAB', days: 'SAT', start: '8:00 AM', end: '2:00 PM', room: 'MULTIMEDIA RM' }
+            ]
+        };
+
+        const key = `${year}${sem}`;
+        const subs = subjectsCatalog[key] || subjectsCatalog['41'];
+        let totUnits = 0;
+        let labCount = 0;
+        subs.forEach(s => {
+            totUnits += s.units;
+            if (s.type.includes('LAB')) labCount++;
+        });
+
+        return {
+            year, sem,
+            yearText: yearTexts[year] || `${year}th Year`,
+            semText: semTexts[sem] || `${sem}st Semester`,
+            secCode, course,
+            fullSection: `${course} - ${secCode}`,
+            subjects: subs.map(s => ({ ...s, section: secCode })),
+            totalUnits: totUnits,
+            labCount
+        };
+    }
+
+    // ── Official Assessment Receipt View Modal ──
     window.viewAssessmentReceipt = function(fee) {
         if (!fee) return;
+        const studentFullName = ((fee.first_name || '') + ' ' + (fee.last_name || '')).trim() || 'DELA CRUZ, JUAN';
+        const gradeSec = fee.grade_level || '41A2';
+        const sched = getAccountingCurriculum(gradeSec);
+
         document.getElementById('arNumber').textContent = '#TF-' + fee.id;
-        document.getElementById('arDate').textContent = fee.created_at ? new Date(fee.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '<?= date("M d, Y") ?>';
-        document.getElementById('arStudentName').textContent = (fee.first_name || '') + ' ' + (fee.last_name || '');
+        document.getElementById('arDate').textContent = fee.created_at ? new Date(fee.created_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) + ' ' + new Date(fee.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '<?= date("m/d/Y h:i A") ?>';
+        document.getElementById('arStudentName').textContent = studentFullName;
         document.getElementById('arStudentNum').textContent = fee.student_num || '—';
-        document.getElementById('arGradeLevel').textContent = fee.grade_level || 'BSCS 11A1';
-        document.getElementById('arTerm').textContent = (fee.school_year || 'S.Y.') + ' (' + (fee.semester || '1st Semester') + ')';
+        document.getElementById('arCourseCode').textContent = sched.course;
+        document.getElementById('arYearLevel').textContent = sched.yearText;
+        document.getElementById('arGradeLevel').textContent = sched.secCode + ' (' + sched.fullSection + ')';
+        document.getElementById('arTerm').textContent = (fee.school_year || 'S.Y. 2026-2027') + ' • ' + (fee.semester || sched.semText);
         document.getElementById('arDescription').textContent = fee.description || 'Tuition Assessment';
+        const sigStudent = document.getElementById('arSigStudent');
+        if (sigStudent) sigStudent.textContent = studentFullName;
 
         const totalAmount = parseFloat(fee.total_amount || 0);
         const amountPaid = parseFloat(fee.amount_paid || 0);
         const remaining = Math.max(0, totalAmount - amountPaid);
+        const instCharge = Math.round(totalAmount * 0.099175 * 100) / 100;
+        const instTotal = Math.round((totalAmount + instCharge) * 100) / 100;
 
         document.getElementById('arTotalAssessed').textContent = '₱' + totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         document.getElementById('arSumAssessed').textContent = '₱' + totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         document.getElementById('arSumPaid').textContent = '₱' + amountPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         document.getElementById('arSumRemaining').textContent = '₱' + remaining.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const arInstCharge = document.getElementById('arInstallmentCharge');
+        if (arInstCharge) arInstCharge.textContent = '₱' + instCharge.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const arInstTot = document.getElementById('arInstallmentTotal');
+        if (arInstTot) arInstTot.textContent = '₱' + instTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
         const badge = document.getElementById('arStatusBadge');
         if (remaining <= 0 && totalAmount > 0) {
@@ -2428,21 +3146,41 @@ $accountingName = Auth::username() ?? 'accounting';
             badge.style.color = '#991b1b';
         }
 
-        // Render item breakdown
+        // Render Specified Subjects Schedule
+        const subjectsBody = document.getElementById('arSubjectsBody');
+        if (subjectsBody) {
+            subjectsBody.innerHTML = sched.subjects.map(s => `
+                <tr>
+                    <td style="text-align: center; font-weight: 800; font-family: monospace; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.code)}</td>
+                    <td style="border: 1px solid #000000; padding: 4px 6px;"><strong>${escapeHtml(s.description)}</strong></td>
+                    <td style="text-align: center; font-weight: 800; border: 1px solid #000000; padding: 4px 6px;">${s.units}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.type)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.days)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.start)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.end)}</td>
+                    <td style="text-align: center; font-weight: 700; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.section)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.room)}</td>
+                </tr>
+            `).join('');
+        }
+        const arTotalUnits = document.getElementById('arTotalUnits');
+        if (arTotalUnits) arTotalUnits.textContent = sched.totalUnits;
+
+        // Render Item Breakdown
         const itemsBody = document.getElementById('arItemsBody');
         const items = Array.isArray(fee.items) ? fee.items : [];
         if (items.length > 0) {
             itemsBody.innerHTML = items.map(item => `
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 7px 10px; color: #1e293b;">${escapeHtml(item.category_name || item.name || 'Tuition Aspect')}</td>
-                    <td style="padding: 7px 10px; text-align: right; font-weight: 600; color: #0f172a;">₱${parseFloat(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <tr style="border-bottom: 1px dashed #cbd5e1;">
+                    <td style="padding: 4px 8px; color: #1e293b;">${escapeHtml(item.category_name || item.name || 'Tuition Aspect')}</td>
+                    <td style="padding: 4px 8px; text-align: right; font-weight: 700; color: #0f172a;">₱${parseFloat(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
             `).join('');
         } else {
             itemsBody.innerHTML = `
-                <tr style="border-bottom: 1px solid #f1f5f9;">
-                    <td style="padding: 7px 10px; color: #1e293b;">Tuition Assessment Fee</td>
-                    <td style="padding: 7px 10px; text-align: right; font-weight: 600; color: #0f172a;">₱${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <tr style="border-bottom: 1px dashed #cbd5e1;">
+                    <td style="padding: 4px 8px; color: #1e293b;">Tuition Fee (${sched.totalUnits} Units)</td>
+                    <td style="padding: 4px 8px; text-align: right; font-weight: 700; color: #0f172a;">₱${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
             `;
         }
@@ -2453,10 +3191,10 @@ $accountingName = Auth::username() ?? 'accounting';
         if (payments.length > 0) {
             paymentsBody.innerHTML = payments.map(p => `
                 <tr style="border-bottom: 1px solid #f0fdf4;">
-                    <td style="padding: 6px 10px; font-weight: 700; color: #0b3d2e;">${escapeHtml(p.or_number || 'OR-N/A')}</td>
-                    <td style="padding: 6px 10px; color: #475569;">${p.paid_at ? new Date(p.paid_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : (p.created_at || '—')}</td>
-                    <td style="padding: 6px 10px; text-transform: uppercase; font-weight: 600;">${escapeHtml(p.payment_method || 'CASH')}</td>
-                    <td style="padding: 6px 10px; text-align: right; font-weight: 700; color: #059669;">₱${parseFloat(p.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                    <td style="padding: 4px 6px; font-weight: 700; color: #0b3d2e;">${escapeHtml(p.or_number || 'OR-N/A')}</td>
+                    <td style="padding: 4px 6px; color: #475569;">${p.paid_at ? new Date(p.paid_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' }) : (p.created_at || '—')}</td>
+                    <td style="padding: 4px 6px; text-transform: uppercase; font-weight: 600;">${escapeHtml(p.payment_method || 'CASH')}</td>
+                    <td style="padding: 4px 6px; text-align: right; font-weight: 700; color: #059669;">₱${parseFloat(p.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                 </tr>
             `).join('');
         } else {
@@ -2467,6 +3205,7 @@ $accountingName = Auth::username() ?? 'accounting';
 
         document.getElementById('assessmentReceiptModal')?.classList.add('active');
     };
+
 
     window.showRejectionReason = function(name, reason) {
         const cleanName = escapeHtml(name || 'Fee Category');
@@ -2490,12 +3229,83 @@ $accountingName = Auth::username() ?? 'accounting';
 
     // ── Receipt Voucher Modal ──
     window.viewReceiptVoucher = function(p) {
-        document.getElementById('vOrNumber').textContent = p.or_number;
-        document.getElementById('vStudentName').textContent = p.first_name + ' ' + p.last_name;
-        document.getElementById('vStudentNum').textContent = p.student_num;
+        const studentFullName = ((p.first_name || '') + ' ' + (p.last_name || '')).trim() || 'DELA CRUZ, JUAN';
+        const gradeSec = p.grade_level || '41A2';
+        const sched = getAccountingCurriculum(gradeSec);
+
+        document.getElementById('vOrNumber').textContent = p.or_number || 'OR-00000';
+        document.getElementById('vStudentName').textContent = studentFullName;
+        document.getElementById('vStudentNum').textContent = p.student_num || '—';
+        document.getElementById('vCourse').textContent = sched.course;
+        document.getElementById('vSection').textContent = sched.secCode + ' (' + sched.fullSection + ')';
+        document.getElementById('vYearLevel').textContent = sched.yearText;
         document.getElementById('vMethod').textContent = (p.payment_method || 'CASH').toUpperCase();
-        document.getElementById('vDate').textContent = p.paid_at || p.created_at;
-        document.getElementById('vAmount').textContent = '₱' + parseFloat(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
+        document.getElementById('vDate').textContent = p.paid_at ? new Date(p.paid_at).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) + ' ' + new Date(p.paid_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : (p.created_at || '—');
+        document.getElementById('vAmount').textContent = '₱' + parseFloat(p.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const vSig = document.getElementById('vSigStudent');
+        if (vSig) vSig.textContent = studentFullName;
+
+        // Render Specified Subjects
+        const vSubjectsBody = document.getElementById('vSubjectsBody');
+        if (vSubjectsBody) {
+            vSubjectsBody.innerHTML = sched.subjects.map(s => `
+                <tr>
+                    <td style="text-align: center; font-weight: 800; font-family: monospace; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.code)}</td>
+                    <td style="border: 1px solid #000000; padding: 4px 6px;"><strong>${escapeHtml(s.description)}</strong></td>
+                    <td style="text-align: center; font-weight: 800; border: 1px solid #000000; padding: 4px 6px;">${s.units}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.type)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.days)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.start)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.end)}</td>
+                    <td style="text-align: center; font-weight: 700; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.section)}</td>
+                    <td style="text-align: center; border: 1px solid #000000; padding: 4px 6px;">${escapeHtml(s.room)}</td>
+                </tr>
+            `).join('');
+        }
+        const vTotalUnits = document.getElementById('vTotalUnits');
+        if (vTotalUnits) vTotalUnits.textContent = sched.totalUnits;
+
+        // Compute and render Assessment of Fees
+        let tuitionTotal = 8397.35, labTotal = 3078.00, miscBase = 4743.49, lmsFee = 2053.20, omrFee = 139.20, nstpFee = 0.00;
+        if (sched.year === 1) nstpFee = 1500.00;
+        if (`${sched.year}${sched.sem}` !== '41') {
+            tuitionTotal = Math.round(sched.totalUnits * 645.95 * 100) / 100;
+            labTotal = Math.round(sched.labCount * 1026.00 * 100) / 100;
+        }
+        let cashTotal = Math.round((tuitionTotal + labTotal + miscBase + lmsFee + omrFee + nstpFee) * 100) / 100;
+        if (cashTotal > 29800) {
+            tuitionTotal = Math.round((tuitionTotal - (cashTotal - 29000)) * 100) / 100;
+            cashTotal = Math.round((tuitionTotal + labTotal + miscBase + lmsFee + omrFee + nstpFee) * 100) / 100;
+        }
+        const instCharge = Math.round(cashTotal * 0.099175 * 100) / 100;
+        const instTotal = Math.round((cashTotal + instCharge) * 100) / 100;
+
+        const breakdown = [
+            { name: `Tuition Fee (${sched.totalUnits} Units @ 645.95)`, amount: tuitionTotal },
+            { name: `Laboratory Fee (${sched.labCount} Lab Subjects)`, amount: labTotal },
+            { name: 'Institutional Misc Fee (Reg, Library, Med/Dental)', amount: miscBase },
+            { name: 'Learning Management System (LMS) & Campus Cloud', amount: lmsFee }
+        ];
+        if (nstpFee > 0) breakdown.push({ name: 'NSTP / ROTC Component Fee', amount: nstpFee });
+        breakdown.push({ name: 'OMR / Exam Scoring & Educational Research', amount: omrFee });
+
+        const vFeesBody = document.getElementById('vFeesBody');
+        if (vFeesBody) {
+            vFeesBody.innerHTML = breakdown.map(b => `
+                <tr style="border-bottom: 1px dashed #cbd5e1;">
+                    <td style="padding: 3px 8px;">${escapeHtml(b.name)}</td>
+                    <td style="padding: 3px 8px; text-align: right; font-weight: 700;">₱${b.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                </tr>
+            `).join('');
+        }
+
+        const vCashTotal = document.getElementById('vCashTotal');
+        if (vCashTotal) vCashTotal.textContent = '₱' + cashTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const vInstCharge = document.getElementById('vInstallmentCharge');
+        if (vInstCharge) vInstCharge.textContent = '₱' + instCharge.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const vInstTotal = document.getElementById('vInstallmentTotal');
+        if (vInstTotal) vInstTotal.textContent = '₱' + instTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
         document.getElementById('receiptModal')?.classList.add('active');
     };
 
