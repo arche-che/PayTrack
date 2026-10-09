@@ -160,13 +160,12 @@ class AccountingController
             $actionWord = 'posted';
         }
 
-        // Notify student & parents via email
-        $notifyEmail = !empty($_POST['notify_email']);
-        if ($notifyEmail && $createdFee) {
+        // Always notify student and parents when accounting posts or updates tuition.
+        if ($createdFee) {
             Mailer::sendTuitionAssessmentNotice($student, $createdFee, $selectedItems);
         }
 
-        Auth::setFlash('success', "Tuition assessment of " . peso($createdFee['total_amount'] ?? 0) . " {$actionWord} for {$student['first_name']} {$student['last_name']}." . ($notifyEmail ? " Notification emails sent to student & parents." : ""));
+        Auth::setFlash('success', "Tuition assessment of " . peso($createdFee['total_amount'] ?? 0) . " {$actionWord} for {$student['first_name']} {$student['last_name']}. Email notification sent to student and parents (when parent email is on file).");
         redirect(APP_URL . '/public/accounting/?view=students');
     }
 

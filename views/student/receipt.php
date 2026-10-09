@@ -24,6 +24,14 @@ $feeDesc  = $p['fee_desc'] ?? 'Tuition Fee Assessment Installment';
 $assessmentData = Curriculum::getAssessmentData($gradeLevelRaw, !empty($totalFees) ? $totalFees : null, $courseHint);
 $parsed         = $assessmentData['parsed'];
 $subjects       = $assessmentData['subjects'];
+$paymentSubjects = json_decode((string)($p['enrolled_subjects_snapshot'] ?? ''), true);
+$currentSubjects = json_decode((string)($p['current_enrolled_subjects'] ?? ''), true);
+if (is_array($paymentSubjects)) {
+    $subjects = $paymentSubjects;
+}
+$currentSubjectCodes = is_array($currentSubjects)
+    ? array_map(static fn($subject) => strtoupper(trim((string)($subject['code'] ?? ''))), $currentSubjects)
+    : array_map(static fn($subject) => strtoupper(trim((string)($subject['code'] ?? ''))), $subjects);
 $totalUnits     = $assessmentData['total_units'];
 $breakdown      = $assessmentData['breakdown'];
 $cashTotal      = $assessmentData['cash_total'];
@@ -433,9 +441,10 @@ $remainingBalance = max(0, $cashTotal - $amountPaid);
         </thead>
         <tbody>
             <?php foreach ($subjects as $s): ?>
+                <?php $subjectRemoved = !in_array(strtoupper(trim((string)($s['code'] ?? ''))), $currentSubjectCodes, true); ?>
                 <tr>
-                    <td class="center" style="font-weight: 800; font-family: monospace;"><?= e($s['code']) ?></td>
-                    <td><strong><?= e($s['description']) ?></strong></td>
+                    <td class="center" style="font-weight: 800; font-family: monospace;<?= $subjectRemoved ? ' color:#dc2626;' : '' ?>"><?= e($s['code']) ?></td>
+                    <td style="<?= $subjectRemoved ? 'color:#dc2626;' : '' ?>"><strong><?= e($s['description']) ?></strong></td>
                     <td class="center" style="font-weight: 800;"><?= e($s['units']) ?></td>
                     <td class="center"><?= e($s['type']) ?></td>
                     <td class="center"><?= e($s['days']) ?></td>

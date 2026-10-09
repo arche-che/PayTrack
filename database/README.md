@@ -53,6 +53,8 @@ Pagkatapos i-import ang database, buksan ang login page sa browser:
 
 ## 🛠️ Database Configuration sa System
 
+Kung mayroon ka nang PayTrack database, patakbuhin muna ang `database/migrations/2026_10_09_payment_subject_snapshot.sql` sa phpMyAdmin bago gamitin ang updated payment history. Iniimbak nito ang listahan ng subjects sa bawat bagong bayad upang maipakita sa kasaysayan kung alin ang inalis kalaunan.
+
 Kung default ang XAMPP setup mo:
 - **Host:** `localhost`
 - **Port:** `3306`

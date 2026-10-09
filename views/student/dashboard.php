@@ -1933,6 +1933,7 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
                                 <tr>
                                     <th>OFFICIAL RECEIPT (OR#)</th>
                                     <th>ASSESSMENT TERM</th>
+                                    <th>SUBJECTS</th>
                                     <th>PAYMENT METHOD</th>
                                     <th>AMOUNT PAID</th>
                                     <th>DATE &amp; TIME</th>
@@ -1942,15 +1943,28 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
                             <tbody>
                                 <?php if (empty($payments)): ?>
                                     <tr>
-                                        <td colspan="6" style="text-align: center; padding: 48px; color: #64748b;">
+                                        <td colspan="7" style="text-align: center; padding: 48px; color: #64748b;">
                                             No payment transactions recorded yet. Click "Pay Tuition Now" to submit your first installment.
                                         </td>
                                     </tr>
                                 <?php else: ?>
                                     <?php foreach ($payments as $p): ?>
+                                        <?php
+                                            $paymentSubjects = json_decode((string)($p['enrolled_subjects_snapshot'] ?? ''), true);
+                                            $currentSubjects = json_decode((string)($p['current_enrolled_subjects'] ?? ''), true);
+                                            $currentCodes = is_array($currentSubjects) ? array_map(static fn($subject) => strtoupper(trim((string)($subject['code'] ?? ''))), $currentSubjects) : [];
+                                        ?>
                                         <tr>
                                             <td><code style="font-weight: 700; color: #0f172a; font-size: 13px;"><?= e($p['or_number']) ?></code></td>
                                             <td style="color: #475569;"><?= e($p['fee_desc']) ?></td>
+                                            <td style="font-size:12px;">
+                                                <?php if (is_array($paymentSubjects) && $paymentSubjects): ?>
+                                                    <?php foreach ($paymentSubjects as $subject): ?>
+                                                        <?php $code = trim((string)($subject['code'] ?? '')); $removed = is_array($currentSubjects) && !in_array(strtoupper($code), $currentCodes, true); ?>
+                                                        <span style="display:inline-block;margin:1px 4px 1px 0;<?= $removed ? 'color:#dc2626;font-weight:700;' : 'color:#475569;' ?>" title="<?= $removed ? 'Removed from current assessment' : 'Enrolled subject' ?>"><?= e($code ?: ($subject['description'] ?? 'Subject')) ?></span>
+                                                    <?php endforeach; ?>
+                                                <?php else: ?><span style="color:#94a3b8;">—</span><?php endif; ?>
+                                            </td>
                                             <td>
                                                 <span class="badge-method-online">
                                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -1965,13 +1979,13 @@ $calcPct = ($totalFees > 0) ? min(100, round(($totalPaid / $totalFees) * 100)) :
                                             <td><strong style="color: #059669; font-weight: 800; font-size: 13.5px;"><?= peso((float)$p['amount']) ?></strong></td>
                                             <td style="color: #475569; font-size: 12.5px;"><?= date('M d, Y h:i A', strtotime($p['paid_at'])) ?></td>
                                             <td style="text-align: right; white-space: nowrap;">
-                                                <button class="btn-view-receipt-outline" onclick="openOfficialReceiptModal('<?= e($p['or_number']) ?>', '<?= peso((float)$p['amount']) ?>', '<?= date('M d, Y h:i A', strtotime($p['paid_at'])) ?>', '<?= strtoupper(e($p['payment_method'])) ?>', '<?= e($p['fee_desc']) ?>', '<?= e($studentName) ?>', '<?= e($studentNum) ?>', '<?= e($student['grade_level'] ?? 'BSCS 11A1') ?>')">
+                                                <a href="<?= APP_URL ?>/public/student/?view=receipt&amp;or=<?= urlencode($p['or_number']) ?>" target="_blank" class="btn-view-receipt-outline" style="text-decoration:none;">
                                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                                                         <circle cx="12" cy="12" r="3"></circle>
                                                     </svg>
                                                     View OR
-                                                </button>
+                                                </a>
                                                 <a href="<?= APP_URL ?>/public/student/?view=receipt&or=<?= urlencode($p['or_number']) ?>" target="_blank" class="btn-view-receipt-outline" style="background: #0b3d2e; color: #ffffff; border-color: #0b3d2e; text-decoration: none;" title="Open and print official receipt">
                                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                                                     Print

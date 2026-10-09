@@ -1496,7 +1496,7 @@ $accountingName = Auth::username() ?? 'accounting';
 <!-- MODAL: ASSIGN TUITION & CLASS DETAILS WITH EDITABLE FEES -->
 <!-- ==================================================== -->
 <div class="modal-backdrop" id="assignTuitionModal">
-    <div class="modal-window" style="max-width: 840px; max-height: 92vh; overflow-y: auto;">
+    <div class="modal-window" style="width: calc(100vw - 32px); max-width: 1180px; max-height: 94vh; overflow-y: auto;">
         <button class="modal-close-x" id="btnCloseAssignModal">&times;</button>
         <div class="assessment-modal-heading" style="display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #e2e8f0;">
             <div style="display: flex; align-items: center; gap: 12px;">
@@ -1569,7 +1569,7 @@ $accountingName = Auth::username() ?? 'accounting';
                 </div>
             </div>
 
-            <!-- LIVE Subjects Preview with Remove per Row -->
+            <!-- LIVE Subjects Preview with per-subject selection -->
             <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px; margin-bottom:12px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
                     <div style="display:flex; align-items:center; gap:6px;">
@@ -1582,17 +1582,17 @@ $accountingName = Auth::username() ?? 'accounting';
                         <button type="button" onclick="resetToCalculatedCurriculumFees()" style="padding:2px 9px; font-size:10px; background:#f1f5f9; border:1px solid #cbd5e1; color:#334155; border-radius:5px; font-weight:600; cursor:pointer;">↺ Reset</button>
                     </div>
                 </div>
-                <div style="max-height:175px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff;">
-                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                <div style="max-height:300px; overflow:auto; border:1px solid #e2e8f0; border-radius:6px; background:#fff;">
+                    <table style="width:100%; table-layout:fixed; border-collapse:collapse; font-size:11px;">
                         <thead>
                             <tr style="background:#f1f5f9; color:#475569; text-align:left; font-size:9.5px; text-transform:uppercase; border-bottom:1px solid #e2e8f0; position:sticky; top:0; z-index:1;">
-                                <th style="padding:5px 6px; width:12%;">Code</th>
-                                <th style="padding:5px 6px;">Title</th>
-                                <th style="padding:5px 6px; text-align:center; width:6%;">Units</th>
-                                <th style="padding:5px 6px; text-align:center; width:9%;">Type</th>
-                                <th style="padding:5px 6px; width:18%;">Schedule</th>
-                                <th style="padding:5px 6px; width:10%;">Room</th>
-                                <th style="padding:5px 6px; width:5%; text-align:center;">Del</th>
+                                <th style="padding:6px 4px; width:6%; text-align:center;">Add</th>
+                                <th style="padding:6px 5px; width:11%;">Code</th>
+                                <th style="padding:6px 5px; width:31%;">Subject title</th>
+                                <th style="padding:6px 4px; text-align:center; width:7%;">Units</th>
+                                <th style="padding:6px 4px; text-align:center; width:11%;">Type</th>
+                                <th style="padding:6px 5px; width:24%;">Schedule</th>
+                                <th style="padding:6px 5px; width:10%;">Room</th>
                             </tr>
                         </thead>
                         <tbody id="previewSubjectsTbody">
@@ -1601,7 +1601,7 @@ $accountingName = Auth::username() ?? 'accounting';
                     </table>
                 </div>
                 <div style="font-size:10px; color:#94a3b8; margin-top:4px;">
-                    ⚠ Removing a subject adjusts Tuition Fee units &amp; Lab Fee counts automatically.
+                    Select the checkbox to include a subject. Tuition units and lab fees update automatically.
                 </div>
             </div>
 
@@ -1635,13 +1635,6 @@ $accountingName = Auth::username() ?? 'accounting';
                         <div style="font-size: 11px; color: #64748b;">Installment: <strong id="computedInstallmentDisplay">₱0.00</strong></div>
                     </div>
                 </div>
-            </div>
-
-            <div style="margin-bottom: 20px;">
-                <label style="display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #334155; cursor: pointer;">
-                    <input type="checkbox" name="notify_email" value="1" checked>
-                    <span><strong>Send automated email notification</strong> with specified fee breakdown to Student &amp; Parents</span>
-                </label>
             </div>
 
             <div style="display: flex; justify-content: flex-end; gap: 10px;">
@@ -2562,7 +2555,8 @@ $accountingName = Auth::username() ?? 'accounting';
     };
 
     // ── Module-level mutable subjects state ──────────────────────────────────
-    let _currentSubjects = []; // working copy, modified when rows are deleted
+    let _currentSubjects = [];
+    let _availableSubjects = [];
 
     function syncEnrolledSubjectsJson() {
         const hf = document.getElementById('assignEnrolledSubjectsJson');
@@ -2597,13 +2591,20 @@ $accountingName = Auth::username() ?? 'accounting';
         if (l) l.textContent = `${labCount} Labs`;
     }
 
-    window.removeSubjectRow = function(idx) {
-        if (idx < 0 || idx >= _currentSubjects.length) return;
-        _currentSubjects.splice(idx, 1);
+    window.toggleSubjectRow = function(idx, isChecked) {
+        if (idx < 0 || idx >= _availableSubjects.length) return;
+        const subject = _availableSubjects[idx];
+        const subjectCode = String(subject.code || '').toUpperCase();
+        if (isChecked) {
+            if (!_currentSubjects.some(s => String(s.code || '').toUpperCase() === subjectCode)) {
+                _currentSubjects.push(Object.assign({}, subject));
+            }
+        } else {
+            _currentSubjects = _currentSubjects.filter(s => String(s.code || '').toUpperCase() !== subjectCode);
+        }
         syncEnrolledSubjectsJson();
 
         const course = (document.getElementById('assignCourseSelect') || {}).value || 'BSIT';
-        const year   = parseInt((_currentSubjects[0] || {}).section ? _currentSubjects[0].section[0] : 1) || 1;
         const rates  = window.NCST_CURRICULUM.rates || { unit:645.95, lab:1026.00, misc:4743.49, lms:2053.20, omr:139.20, nstp:1500.00 };
 
         // Recalculate totals from new subjects list
@@ -2648,20 +2649,19 @@ $accountingName = Auth::username() ?? 'accounting';
     function rebuildSubjectRows() {
         const tbody = document.getElementById('previewSubjectsTbody');
         if (!tbody) return;
-        tbody.innerHTML = _currentSubjects.map((s, idx) => {
+        tbody.innerHTML = _availableSubjects.map((s, idx) => {
             const isLab = String(s.type || '').includes('LAB');
+            const isSelected = _currentSubjects.some(selected => String(selected.code || '').toUpperCase() === String(s.code || '').toUpperCase());
             return `<tr style="border-bottom:1px solid #f1f5f9;" id="subRow_${idx}">
+                <td style="padding:4px;text-align:center;"><input type="checkbox" aria-label="Include ${escapeHtml(s.code)}" ${isSelected ? 'checked' : ''} onchange="toggleSubjectRow(${idx},this.checked)" style="width:16px;height:16px;accent-color:#047857;cursor:pointer;"></td>
                 <td style="padding:4px 6px;font-weight:800;font-family:monospace;color:#0b3d2e;font-size:10.5px;">${escapeHtml(s.code)}</td>
-                <td style="padding:4px 6px;font-size:11px;"><strong>${escapeHtml(s.description)}</strong></td>
+                <td style="padding:5px 6px;font-size:11px;overflow-wrap:anywhere;"><strong>${escapeHtml(s.description)}</strong></td>
                 <td style="padding:4px 6px;text-align:center;font-weight:800;font-size:11px;">${s.units}</td>
                 <td style="padding:4px 6px;text-align:center;">
                     <span style="display:inline-block;padding:1px 5px;border-radius:3px;font-size:9.5px;font-weight:700;background:${isLab?'#e0f2fe':'#f1f5f9'};color:${isLab?'#0284c7':'#475569'};">${escapeHtml(s.type)}</span>
                 </td>
-                <td style="padding:4px 6px;font-size:10px;color:#475569;">${escapeHtml(s.days)} ${escapeHtml(s.start_time||'')} – ${escapeHtml(s.end_time||'')}</td>
-                <td style="padding:4px 6px;font-size:10px;font-weight:600;color:#334155;">${escapeHtml(s.room||'')}</td>
-                <td style="padding:4px 6px;text-align:center;">
-                    <button type="button" onclick="removeSubjectRow(${idx})" title="Remove this subject" style="background:none;border:none;cursor:pointer;color:#ef4444;font-size:14px;padding:0;line-height:1;">✕</button>
-                </td>
+                <td style="padding:5px 6px;font-size:10px;color:#475569;overflow-wrap:anywhere;">${escapeHtml(s.days)} ${escapeHtml(s.start_time||'')} – ${escapeHtml(s.end_time||'')}</td>
+                <td style="padding:5px 6px;font-size:10px;font-weight:600;color:#334155;overflow-wrap:anywhere;">${escapeHtml(s.room||'')}</td>
             </tr>`;
         }).join('');
     }
@@ -2702,8 +2702,23 @@ $accountingName = Auth::username() ?? 'accounting';
         const termKey = `${year}${sem}`;
         const rawSubs = courseCatalog[termKey] || courseCatalog['41'] || window.NCST_CURRICULUM.curricula['BSIT']['41'];
 
-        // Deep-clone into mutable state
-        _currentSubjects = rawSubs.map(s => Object.assign({}, s, { section: secCode }));
+        // Restore the accounting selection when editing an existing assessment.
+        _availableSubjects = rawSubs.map(s => Object.assign({}, s, { section: secCode }));
+        let savedSubjects = null;
+        if (existingFee?.enrolled_subjects) {
+            try {
+                savedSubjects = JSON.parse(existingFee.enrolled_subjects);
+            } catch (error) {
+                savedSubjects = null;
+            }
+        }
+        if (Array.isArray(savedSubjects)) {
+            const savedCodes = new Set(savedSubjects.map(s => String(s.code || '').trim().toUpperCase()));
+            _currentSubjects = _availableSubjects.filter(s => savedCodes.has(String(s.code || '').trim().toUpperCase()));
+        } else {
+            // Older assessments without a saved subject list keep the curriculum defaults.
+            _currentSubjects = _availableSubjects.map(s => Object.assign({}, s));
+        }
         syncEnrolledSubjectsJson();
 
         let totUnits = 0, labCount = 0;

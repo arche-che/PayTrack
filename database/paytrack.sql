@@ -133,6 +133,7 @@ CREATE TABLE `payments` (
   `amount`           DECIMAL(12,2)    NOT NULL,
   `payment_method`   ENUM('cash','gcash','maya','bank_transfer','online','card','other') NOT NULL DEFAULT 'online',
   `notes`            TEXT             NULL,
+  `enrolled_subjects_snapshot` LONGTEXT NULL,
   `paid_at`          DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `created_at`       DATETIME         NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
